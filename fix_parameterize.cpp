@@ -247,11 +247,11 @@ void FixParameterize::read_tersoff_bounds_file() {
   
   PairTersoff *tersoff_upper_bound = new PairTersoff(lmp);
   tersoff_upper_bound->coeff(5, args);
-  tersoff_upper_bound->read_file((char *)"bounds.tersoff");
+  tersoff_upper_bound->read_file((char *)"upper_bounds.tersoff");
   
   PairTersoff *tersoff_lower_bound = new PairTersoff(lmp);
   tersoff_lower_bound->coeff(5, args);
-  tersoff_lower_bound->read_file((char *)"bounds.tersoff");
+  tersoff_lower_bound->read_file((char *)"lower_bounds.tersoff");
   
   //exit(0);
 }
