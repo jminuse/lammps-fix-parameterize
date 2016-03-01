@@ -1,0 +1,9 @@
+Created new pair style lj/cut/coul/inout based on lj/cut/coul/dsf
+Replacing cut_lj and cut_coul with cut_inner and cut_outer, cut_ljsq with cut_inner_sq
+In initial command, changed required narg to be exactly 3, not 2-optional-3
+In individual pair coeffs, optional last argument = inner cutoff for that pair
+rsq = pow( pow(rsq,N/2) + pow(cut_inner[itype][jtype],N), 2/N); //modified to include inner cutoff
+
+Making fix parameterize out of fix nve
+FixNVE => FixParameterize
+
