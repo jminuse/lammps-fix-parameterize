@@ -51,7 +51,6 @@ Getting started:
 		git checkout -t origin/master
 		
 		
-		
 When you start work:
 git pull
 
