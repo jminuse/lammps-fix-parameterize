@@ -26,6 +26,8 @@ FixStyle(parameterize,FixParameterize)
 #include "pair_tersoff.h"
 #include "pair_lj_cut_coul_inout.h"
 
+#include <vector>
+
 namespace LAMMPS_NS {
 
 class FixParameterize : public Fix {
@@ -56,9 +58,23 @@ class FixParameterize : public Fix {
   double *best_lj_sigma;
   double *best_lj_epsilon;
   
+  //bounds
   PairTersoff *tersoff_upper_bound;
+  double *upper_charges;
+  double *upper_lj_sigma;
+  double *upper_lj_epsilon;
   PairTersoff *tersoff_lower_bound;
+  double *lower_charges;
+  double *lower_lj_sigma;
+  double *lower_lj_epsilon;
   
+  //Flat array of all parameters made by pack_params
+  std::vector<double> params_best;
+  double *params_upper;
+  double *params_lower;
+  double *params_current;
+  
+  //Functions
   double calculate_error();
   void write_tersoff_file();
   void pack_params();

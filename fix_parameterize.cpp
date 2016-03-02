@@ -215,9 +215,9 @@ void FixParameterize::final_integrate() //check the results after the step
     double powern,beta;
     double biga,bigb,bigd,bigr;
     double cut,cutsq;
-    double c1,c2,c3,c4;
+    double c1,c2,c3,c4; //derived params
     int ielement,jelement,kelement;
-    int powermint;
+    int powermint; //derived params
     double Z_i,Z_j;              // added for TersoffZBL
     double ZBLcut,ZBLexpscale;
     double c5,ca1,ca4;           // added for TersoffMOD
@@ -255,7 +255,17 @@ void FixParameterize::write_tersoff_file() {
 }
 
 void FixParameterize::pack_params() {
-  
+  //int count_params = 0;
+  //if( tersoff_upper_bound->lam1 > tersoff_lower_bound->lam1 )
+  //  count_params++;
+  /*
+  lam1,lam2,lam3;
+  c,d,h;
+  gamma,powerm;
+  powern,beta;
+  biga,bigb,bigd,bigr;
+  cut,cutsq;
+  */
 }
 
 void FixParameterize::unpack_params() {
