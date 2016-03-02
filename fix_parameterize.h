@@ -56,9 +56,13 @@ class FixParameterize : public Fix {
   double *best_lj_sigma;
   double *best_lj_epsilon;
   
+  PairTersoff *tersoff_upper_bound;
+  PairTersoff *tersoff_lower_bound;
+  
   double calculate_error();
   void write_tersoff_file();
-  void read_tersoff_bounds_file();
+  void pack_params();
+  void unpack_params();
 };
 
 }

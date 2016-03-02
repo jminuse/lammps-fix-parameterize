@@ -35,23 +35,40 @@ FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
     error->all(FLERR,"Illegal fix parameterize command: requires input file (target forces) and random seed");
   //get inputs from user
   char* input_filename = arg[3];
-  random_seed = force->inumeric(FLERR,arg[4]);
+  char* upper_bounds_filename = arg[4];
+  char* lower_bounds_filename = arg[5];
+  random_seed = force->inumeric(FLERR,arg[6]);
   //read file containing target forces (expecting to be in a flat list, one number on each line)
   FILE *input_file = fopen(input_filename, "r");
   if(input_file==NULL) error->all(FLERR,"No such target-forces file exists");
-  char buffer[80];
+  char buffer[100];
   n_target_forces = 0;
-  while(fscanf(input_file, "%s\n", &buffer) != EOF) //first pass: count how many forces there are
+  while(fscanf(input_file, "%s\n", (char*)&buffer) != EOF) //first pass: count how many forces there are
     n_target_forces++;
   rewind(input_file);
   target_forces = new double[n_target_forces]; //allocate enough memory for all the forces
   int i = 0;
-  while(fscanf(input_file, "%s\n", &buffer) != EOF) //second pass: read the forces
+  while(fscanf(input_file, "%s\n", (char*)&buffer) != EOF) //second pass: read the forces
     target_forces[i++] = force->numeric(FLERR,buffer);
   fclose(input_file);
 
-  read_tersoff_bounds_file();
-
+  //read Tersoff bounds
+  char **tersoff_bounds_args = new char*[5];
+  tersoff_bounds_args[0] = (char*) "*";
+  tersoff_bounds_args[1] = (char*) "*";
+  tersoff_bounds_args[2] = (char*) "bounds.tersoff";
+  tersoff_bounds_args[3] = (char*) "Pb";
+  tersoff_bounds_args[4] = (char*) "I";
+  
+  tersoff_upper_bound = new PairTersoff(lmp);
+  tersoff_upper_bound->coeff(5, tersoff_bounds_args);
+  tersoff_upper_bound->read_file(upper_bounds_filename);
+  
+  tersoff_lower_bound = new PairTersoff(lmp);
+  tersoff_lower_bound->coeff(5, tersoff_bounds_args);
+  tersoff_lower_bound->read_file(lower_bounds_filename);
+  
+  //variables for LAMMPS fix
   dynamic_group_allow = 1; //probably not needed for this fix
   time_integrate = 1;
 }
@@ -237,24 +254,11 @@ void FixParameterize::write_tersoff_file() {
   ready_to_write_file = 0;
 }
 
-void FixParameterize::read_tersoff_bounds_file() {
-  char **args = new char*[5];
-  args[0] = "*";
-  args[1] = "*";
-  args[2] = "bounds.tersoff";
-  args[3] = "Pb";
-  args[4] = "I";
+void FixParameterize::pack_params() {
   
-  PairTersoff *tersoff_upper_bound = new PairTersoff(lmp);
-  tersoff_upper_bound->coeff(5, args);
-  tersoff_upper_bound->read_file((char *)"upper_bounds.tersoff");
-  
-  PairTersoff *tersoff_lower_bound = new PairTersoff(lmp);
-  tersoff_lower_bound->coeff(5, args);
-  tersoff_lower_bound->read_file((char *)"lower_bounds.tersoff");
-  
-  //exit(0);
 }
 
-
+void FixParameterize::unpack_params() {
+  
+}
 
