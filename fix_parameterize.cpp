@@ -76,12 +76,12 @@ FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
 	}
 	if(line.rfind("# LJ-sigma:", 0) == 0) {
       for(int type=0; type < atom->ntypes; type++) {
-		  lj_sigma_upper[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+		  lj_sigma_upper[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+11):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
 	  }
 	}
 	if(line.rfind("# LJ-epsilon:", 0) == 0) {
       for(int type=0; type < atom->ntypes; type++) {
-		  lj_epsilon_upper[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+		  lj_epsilon_upper[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+13):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
 	  }
 	}
   }
@@ -100,17 +100,15 @@ FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
 	}
 	if(line.rfind("# LJ-sigma:", 0) == 0) {
       for(int type=0; type < atom->ntypes; type++) {
-		  lj_sigma_lower[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+		  lj_sigma_lower[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+11):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
 	  }
 	}
 	if(line.rfind("# LJ-epsilon:", 0) == 0) {
       for(int type=0; type < atom->ntypes; type++) {
-		  lj_epsilon_lower[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+		  lj_epsilon_lower[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+13):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
 	  }
 	}
   }
-  
-  
   
   //variables for LAMMPS fix
   dynamic_group_allow = 1; //probably not needed for this fix
@@ -143,6 +141,8 @@ void FixParameterize::init()
   //copy starting charges and LJ parameters by atom type  
   lj = (PairLJCutCoulInOut*) force->pair_match("lj/cut/coul/inout",1,0);
   if(lj==NULL) error->all(FLERR,"Can't find lj/cut/coul/inout pair style in this run");
+  
+  pack_params();
   
   //get ready to record results
   best_error = -1;
@@ -271,7 +271,7 @@ void FixParameterize::pack_params() {
   //get other parameters
   for(int type=0; type < atom->ntypes; type++) {
     //charges belong to atoms, so we must find an atom with type i. LAMMPS types start at 1, not 0. 
-    int atom_of_type = 0;
+    int atom_of_type = 1;
     while(atom_of_type < atom->natoms) {
       if( atom->type[atom_of_type] == type+1 )
         break;
@@ -333,10 +333,9 @@ void FixParameterize::unpack_params(std::vector<double> pp) {
   //modify charges
   for(int a=0; a < atom->natoms; a++) {
     for(int type=0; type < atom->ntypes; type++) {
-      if(atom->type[a] == type+1)
-        atom->q[a] = charges_current[type];
+      if(atom->type[a+1] == type+1)
+        atom->q[a+1] = charges_current[type];
         //todo: make sure there are no resulting parameters based on charge that need to be recalculated after changing charge
-        //todo: check whether atoms are indexed from 1 or 0
     }
   }
   //modify LJ parameters
