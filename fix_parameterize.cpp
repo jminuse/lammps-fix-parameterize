@@ -23,6 +23,8 @@
 #include "pair_tersoff.h"
 #include "pair_lj_cut_coul_inout.h"
 
+#include <vector>
+
 using namespace LAMMPS_NS;
 using namespace FixConst;
 
@@ -31,8 +33,8 @@ using namespace FixConst;
 FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
   Fix(lmp, narg, arg)
 {
-  if (narg != 5)
-    error->all(FLERR,"Illegal fix parameterize command: requires input file (target forces) and random seed");
+  if (narg != 7)
+    error->all(FLERR,"Illegal fix parameterize command: requires input file (target forces), upper bounds file, lower bounds file, and a random seed 1-2^31");
   //get inputs from user
   char* input_filename = arg[3];
   char* upper_bounds_filename = arg[4];
@@ -41,32 +43,19 @@ FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
   //read file containing target forces (expecting to be in a flat list, one number on each line)
   FILE *input_file = fopen(input_filename, "r");
   if(input_file==NULL) error->all(FLERR,"No such target-forces file exists");
+  
   char buffer[100];
-  n_target_forces = 0;
-  while(fscanf(input_file, "%s\n", (char*)&buffer) != EOF) //first pass: count how many forces there are
-    n_target_forces++;
-  rewind(input_file);
-  target_forces = new double[n_target_forces]; //allocate enough memory for all the forces
-  int i = 0;
   while(fscanf(input_file, "%s\n", (char*)&buffer) != EOF) //second pass: read the forces
-    target_forces[i++] = force->numeric(FLERR,buffer);
+    target_forces.push_back( force->numeric(FLERR,buffer) );
   fclose(input_file);
 
   //read Tersoff bounds
-  char **tersoff_bounds_args = new char*[5];
-  tersoff_bounds_args[0] = (char*) "*";
-  tersoff_bounds_args[1] = (char*) "*";
-  tersoff_bounds_args[2] = (char*) "bounds.tersoff";
-  tersoff_bounds_args[3] = (char*) "Pb";
-  tersoff_bounds_args[4] = (char*) "I";
-  
   tersoff_upper_bound = new PairTersoff(lmp);
-  tersoff_upper_bound->coeff(5, tersoff_bounds_args);
-  tersoff_upper_bound->read_file(upper_bounds_filename);
-  
   tersoff_lower_bound = new PairTersoff(lmp);
-  tersoff_lower_bound->coeff(5, tersoff_bounds_args);
-  tersoff_lower_bound->read_file(lower_bounds_filename);
+  const char *tersoff_bounds_args[] = {"*", "*", upper_bounds_filename, "Pb", "I"};
+  tersoff_upper_bound->coeff(5, (char**)tersoff_bounds_args);
+  tersoff_bounds_args[2] = lower_bounds_filename;
+  tersoff_lower_bound->coeff(5, (char**)tersoff_bounds_args);
   
   //variables for LAMMPS fix
   dynamic_group_allow = 1; //probably not needed for this fix
@@ -96,37 +85,9 @@ void FixParameterize::init()
   for(int i=0; i<tersoff->nparams; i++) {
     printf("tersoff elements = %d %d %d, A = %f\n", tersoff->params[i].ielement, tersoff->params[i].jelement, tersoff->params[i].kelement, tersoff->params[i].biga);
   }
-  //copy starting Tersoff parameters
-  best_tersoff_params = new PairTersoff::Param[tersoff->nparams];
-  memcpy(best_tersoff_params, tersoff->params, tersoff->nparams*sizeof(PairTersoff::Param));
-  //print starting Tersoff parameters
-  for(int i=0; i<tersoff->nparams; i++) {
-    printf("Tersoff param A = %f, %f\n", tersoff->params[i].biga, best_tersoff_params[i].biga);
-  }
-  //copy starting charges and LJ parameters by atom type
-  best_charges = new double[atom->ntypes];
-  best_lj_sigma = new double[atom->ntypes];
-  best_lj_epsilon = new double[atom->ntypes];
-  
+  //copy starting charges and LJ parameters by atom type  
   lj = (PairLJCutCoulInOut*) force->pair_match("lj/cut/coul/inout",1,0);
   if(lj==NULL) error->all(FLERR,"Can't find lj/cut/coul/inout pair style in this run");
-  
-  for(int type=0; type<atom->ntypes; type++) {
-    //charges belong to atoms, so we must find an atom with type i. LAMMPS types start at 1, not 0. 
-    int atom_of_type = 0;
-    while(atom_of_type < atom->natoms) {
-      if( atom->type[atom_of_type] == type+1 )
-        break;
-      atom_of_type++;
-    }
-    best_charges[type] = atom->q[atom_of_type];
-    //get LJ params direct from pair style
-    best_lj_sigma[type] = lj->sigma[type+1][type+1];
-    best_lj_epsilon[type] = lj->epsilon[type+1][type+1];
-    
-    printf("Type %d: q=%-5.2f, r=%-5.2f, e=%-5.2f\n", type, best_charges[type], best_lj_sigma[type], best_lj_epsilon[type]);
-  }
-  printf("Atom types: %d\n", atom->ntypes);
   
   //get ready to record results
   best_error = -1;
@@ -150,43 +111,7 @@ double FixParameterize::calculate_error()
 
 void FixParameterize::initial_integrate(int vflag) //modify parameters before the step
 {
-  tersoff->cutmax = 0.0; //changes if R or D are changed
-  
-  for(int i=0; i<tersoff->nparams; i++) {
-    if(tersoff->params[i].ielement==0 && tersoff->params[i].jelement==1 && tersoff->params[i].kelement==1) {
-      
-      tersoff->params[i].biga = best_tersoff_params[i].biga * (1.0 + random->gaussian()*0.01);
-      tersoff->params[i].bigb = best_tersoff_params[i].bigb * (1.0 + random->gaussian()*0.01);
-      
-      //recalculate resulting parameters: cut, cutsq, c1, c2, c3, c4, and cutmax
-      tersoff->params[i].cut = tersoff->params[i].bigr + tersoff->params[i].bigd;
-      tersoff->params[i].cutsq = tersoff->params[i].cut*tersoff->params[i].cut;
-      tersoff->params[i].c1 = pow(2.0*tersoff->params[i].powern*1.0e-16,-1.0/tersoff->params[i].powern);
-      tersoff->params[i].c2 = pow(2.0*tersoff->params[i].powern*1.0e-8,-1.0/tersoff->params[i].powern);
-      tersoff->params[i].c3 = 1.0/tersoff->params[i].c2;
-      tersoff->params[i].c4 = 1.0/tersoff->params[i].c1;
-      if(tersoff->cutmax < tersoff->params[i].cut)
-        tersoff->cutmax = tersoff->params[i].cut;
-    }
-  }
-  //modify charges
-  for(int a=0; a < atom->natoms; a++) {
-    for(int type=0; type < atom->ntypes; type++) {
-      if(atom->type[a] == type+1)
-        atom->q[a] = best_charges[type] * (1.0 + random->gaussian()*0.01);
-        //todo: make sure there are no resulting parameters based on charge that need to be recalculated after changing charge
-        //todo: check whether atoms are indexed from 1 or 0
-    }
-  }
-  //modify LJ parameters
-  for(int type=0; type < atom->ntypes; type++) {
-    lj->sigma[type+1][type+1] = best_lj_sigma[type] * (1.0 + random->gaussian()*0.01);
-    lj->epsilon[type+1][type+1] = best_lj_epsilon[type] * (1.0 + random->gaussian()*0.01);
-  }
-  //recalculate resulting parameters
-  for(int i=1; i <= atom->ntypes; i++)
-    for(int j=1; j <= atom->ntypes; j++)
-      lj->init_one(i, j);
+  unpack_params();
 }
 
 void FixParameterize::final_integrate() //check the results after the step
@@ -196,15 +121,13 @@ void FixParameterize::final_integrate() //check the results after the step
   double new_error = calculate_error();
   
   if(new_error < best_error) {
-    memcpy(best_tersoff_params, tersoff->params, tersoff->nparams*sizeof(PairTersoff::Param));
+    //TODO: copy params_current into params_best here
     best_error = new_error;
     ready_to_write_file = 1;
   }
   counter_since_last_file_write++;
   if(ready_to_write_file && counter_since_last_file_write>1000)
       write_tersoff_file();
-  
-  printf("%f %f\n", best_error, new_error);
 }
 
 /*
@@ -226,25 +149,27 @@ void FixParameterize::final_integrate() //check the results after the step
 */
 
 void FixParameterize::write_tersoff_file() {
+  //get parameters from flat array back into LAMMPS objects
+  unpack_params();
   //open file
   FILE *output = fopen("best.tersoff", "w");
   //output error
   fprintf(output, "# Error: %g\n", best_error);
   //output charges on one line, listed by type
   fprintf(output, "# Charges: ");
-  for(int type=0; type < atom->ntypes; type++) fprintf(output, "%9.6g", best_charges[type]);
+  for(int type=0; type < atom->ntypes; type++) fprintf(output, "%9.6g", charges_current[type]);
   fprintf(output, "\n");
   //output LJ sigma on one line, listed by type
   fprintf(output, "# LJ-sigma: ");
-  for(int type=0; type < atom->ntypes; type++) fprintf(output, "%9.6g", best_lj_sigma[type]);
+  for(int type=0; type < atom->ntypes; type++) fprintf(output, "%9.6g", lj_sigma_current[type]);
   fprintf(output, "\n");
   //output LJ epsilon on one line, listed by type
   fprintf(output, "# LJ-epsilon: ");
-  for(int type=0; type < atom->ntypes; type++) fprintf(output, "%9.6g", best_lj_epsilon[type]);
+  for(int type=0; type < atom->ntypes; type++) fprintf(output, "%9.6g", lj_epsilon_current[type]);
   fprintf(output, "\n");
   //output Tersoff parameters by pair
   for(int i=0; i<tersoff->nparams; i++) {
-    PairTersoff::Param t = best_tersoff_params[i];
+    PairTersoff::Param t = tersoff->params[i];
     fprintf(output, "%-2s %-2s %-2s ", tersoff->elements[t.ielement], tersoff->elements[t.jelement], tersoff->elements[t.kelement]);
     fprintf(output, "%9.6g %9.6g %9.6g %9.6g %9.6g %9.6g\n", t.powerm, t.gamma, t.lam3, t.c, t.d, t.h);
     fprintf(output, "         %9.6g %9.6g %9.6g %9.6g %9.6g %9.6g %9.6g %9.6g\n\n", t.powern, t.beta, t.lam2, t.bigb, t.bigr, t.bigd, t.lam1, t.biga);
@@ -254,21 +179,111 @@ void FixParameterize::write_tersoff_file() {
   ready_to_write_file = 0;
 }
 
+//Macro to reduce the repetitive code below. This is needed because C++ lacks "reflection" - there is no way to loop through a list of an object's members
+#define pack_param(X) if( hi.X > lo.X ) { params_upper.push_back(hi.X); params_lower.push_back(lo.X); params_current.push_back(tt.X); }
+
+#define pack_typewise_param(HI,LO,X) if(HI[type] > LO[type]) { params_upper.push_back(HI[type]); params_lower.push_back(LO[type]); params_current.push_back(X[type]); }
+
 void FixParameterize::pack_params() {
-  //int count_params = 0;
-  //if( tersoff_upper_bound->lam1 > tersoff_lower_bound->lam1 )
-  //  count_params++;
-  /*
-  lam1,lam2,lam3;
-  c,d,h;
-  gamma,powerm;
-  powern,beta;
-  biga,bigb,bigd,bigr;
-  cut,cutsq;
-  */
+  //pack Tersoff parameters into a flat array
+  for(int i=0; i<tersoff->nparams; i++) {
+	PairTersoff::Param hi = tersoff_upper_bound->params[i];
+	PairTersoff::Param lo = tersoff_lower_bound->params[i];
+	PairTersoff::Param tt = tersoff->params[i];
+	pack_param(lam1);
+	pack_param(lam2);
+	pack_param(lam3);
+	pack_param(c);
+	pack_param(d);
+	pack_param(h);
+	pack_param(gamma);
+	pack_param(powerm);
+	pack_param(powern);
+	pack_param(beta);
+	pack_param(biga);
+	pack_param(bigb);
+	pack_param(bigd);
+	pack_param(bigr);
+	pack_param(cut);
+  }
+  //get other parameters
+  for(int type=0; type < atom->ntypes; type++) {
+    //charges belong to atoms, so we must find an atom with type i. LAMMPS types start at 1, not 0. 
+    int atom_of_type = 0;
+    while(atom_of_type < atom->natoms) {
+      if( atom->type[atom_of_type] == type+1 )
+        break;
+      atom_of_type++;
+    }
+    charges_current.push_back( atom->q[atom_of_type] );
+    //get LJ params direct from pair style
+    lj_sigma_current.push_back( lj->sigma[type+1][type+1] );
+    lj_epsilon_current.push_back( lj->epsilon[type+1][type+1] );
+  }
+  //pack other parameters into a flat array
+  for(int type=0; type < atom->ntypes; type++) {
+	pack_typewise_param(charges_upper, charges_lower, charges_current);
+	pack_typewise_param(lj_sigma_upper, lj_sigma_lower, lj_sigma_current);
+	pack_typewise_param(lj_epsilon_upper, lj_epsilon_lower, lj_epsilon_current);
+  }
 }
+
+#define unpack_param(X,I) if( tersoff_upper_bound->params[i].X > tersoff_lower_bound->params[i].X ) { tersoff->params[i].X = params_current[I]; I++; }
+
+#define unpack_typewise_param(HI,LO,X,I) if( HI[type]>LO[type] ) { X[type] = params_current[I]; I++; }
 
 void FixParameterize::unpack_params() {
-  
+  int which = 0;
+  //unpack Tersoff parameters from the flat array to the LAMMPS object
+  for(int i=0; i<tersoff->nparams; i++) {
+	unpack_param(lam1, which);
+	unpack_param(lam2, which);
+	unpack_param(lam3, which);
+	unpack_param(c, which);
+	unpack_param(d, which);
+	unpack_param(h, which);
+	unpack_param(gamma, which);
+	unpack_param(powerm, which);
+	unpack_param(powern, which);
+	unpack_param(beta, which);
+	unpack_param(biga, which);
+	unpack_param(bigb, which);
+	unpack_param(bigd, which);
+	unpack_param(bigr, which);
+	unpack_param(cut, which);
+	
+	//recalculate resulting parameters: cut, cutsq, c1, c2, c3, c4, and cutmax
+	tersoff->params[i].cut = tersoff->params[i].bigr + tersoff->params[i].bigd;
+	tersoff->params[i].cutsq = tersoff->params[i].cut*tersoff->params[i].cut;
+	tersoff->params[i].c1 = pow(2.0*tersoff->params[i].powern*1.0e-16,-1.0/tersoff->params[i].powern);
+	tersoff->params[i].c2 = pow(2.0*tersoff->params[i].powern*1.0e-8,-1.0/tersoff->params[i].powern);
+	tersoff->params[i].c3 = 1.0/tersoff->params[i].c2;
+	tersoff->params[i].c4 = 1.0/tersoff->params[i].c1;
+	if(tersoff->cutmax < tersoff->params[i].cut)
+	  tersoff->cutmax = tersoff->params[i].cut;
+  }
+  //unpack other parameters from the flat array to the LAMMPS object
+  for(int type=0; type < atom->ntypes; type++) {
+    unpack_typewise_param(charges_upper, charges_lower, charges_current, which);
+    unpack_typewise_param(lj_sigma_upper, lj_sigma_lower, lj_sigma_current, which);
+    unpack_typewise_param(lj_epsilon_upper, lj_epsilon_lower, lj_epsilon_current, which);
+  }
+  //modify charges
+  for(int a=0; a < atom->natoms; a++) {
+    for(int type=0; type < atom->ntypes; type++) {
+      if(atom->type[a] == type+1)
+        atom->q[a] = charges_current[type];
+        //todo: make sure there are no resulting parameters based on charge that need to be recalculated after changing charge
+        //todo: check whether atoms are indexed from 1 or 0
+    }
+  }
+  //modify LJ parameters
+  for(int type=0; type < atom->ntypes; type++) {
+    lj->sigma[type+1][type+1] = lj_sigma_current[type];
+    lj->epsilon[type+1][type+1] = lj_epsilon_current[type];
+  }
+  //recalculate resulting parameters
+  for(int i=1; i <= atom->ntypes; i++)
+    for(int j=1; j <= atom->ntypes; j++)
+      lj->init_one(i, j);
 }
-

@@ -42,7 +42,7 @@ class FixParameterize : public Fix {
  protected:
   int random_seed;
   int n_target_forces;
-  double *target_forces;
+  std::vector<double> target_forces;
   RanMars *random;
   double best_error;
   int counter_since_last_file_write;
@@ -50,29 +50,28 @@ class FixParameterize : public Fix {
   
   //tersoff values, per pair of atom types
   PairTersoff *tersoff;
-  PairTersoff::Param *best_tersoff_params;
   
   //Charges and LJ, per atom type
   PairLJCutCoulInOut *lj;
-  double *best_charges;
-  double *best_lj_sigma;
-  double *best_lj_epsilon;
+  std::vector<double> charges_current;
+  std::vector<double> lj_sigma_current;
+  std::vector<double> lj_epsilon_current;
   
   //bounds
   PairTersoff *tersoff_upper_bound;
-  double *upper_charges;
-  double *upper_lj_sigma;
-  double *upper_lj_epsilon;
+  std::vector<double> charges_upper;
+  std::vector<double> lj_sigma_upper;
+  std::vector<double> lj_epsilon_upper;
   PairTersoff *tersoff_lower_bound;
-  double *lower_charges;
-  double *lower_lj_sigma;
-  double *lower_lj_epsilon;
+  std::vector<double> charges_lower;
+  std::vector<double> lj_sigma_lower;
+  std::vector<double> lj_epsilon_lower;
   
   //Flat array of all parameters made by pack_params
   std::vector<double> params_best;
-  double *params_upper;
-  double *params_lower;
-  double *params_current;
+  std::vector<double> params_upper;
+  std::vector<double> params_lower;
+  std::vector<double> params_current;
   
   //Functions
   double calculate_error();

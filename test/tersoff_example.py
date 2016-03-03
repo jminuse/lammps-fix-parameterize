@@ -49,29 +49,6 @@ def set_lammps_parameters(system):
 	for t in system.dihedral_types:
 		lmp.command('dihedral_coeff %d	%f %f %f %f' % ((t.lammps_type,)+t.e))
 
-def run(system):
-	#run LAMMPS
-	seed = str(1)
-	set_lammps_parameters(system)
-	
-	f = open('target_forces.txt', 'w')
-	for a in system.atoms:
-		a.fx, a.fy, a.fz = 0.0, 0.0, 0.0
-		f.write("%e\n%e\n%e\n" % (a.fx, a.fy, a.fz) )
-	f.close()
-	
-	commands = '''
-dump 1 all xyz 10000 '''+system.name+'''.xyz
-thermo 100
-fix params all parameterize target_forces.txt '''+seed+'''
-run 10000
-	'''
-	for line in commands.splitlines():
-		lmp.command(line)
-	
-	lmp.file.close()
-	os.system('/fs/home/jms875/build/lammps/lammps-7Dec15/src/lmp_serial -in %s.in -log %s.log' % (system.name,system.name))
-
 I_ = 66
 H_ = 54
 N_ = 53
@@ -127,5 +104,25 @@ for line in commands:
 
 system.tersoff_params = read_tersoff_file('input.tersoff')
 
-run(system)
+#run LAMMPS
+seed = str(1)
+set_lammps_parameters(system)
+
+f = open('target_forces.txt', 'w')
+for a in system.atoms:
+	a.fx, a.fy, a.fz = 0.0, 0.0, 0.0
+	f.write("%e\n%e\n%e\n" % (a.fx, a.fy, a.fz) )
+f.close()
+
+commands = '''
+dump 1 all xyz 10000 '''+system.name+'''.xyz
+thermo 100
+fix params all parameterize target_forces.txt upper_bounds.tersoff lower_bounds.tersoff '''+seed+'''
+run 10000
+'''
+for line in commands.splitlines():
+	lmp.command(line)
+
+lmp.file.close()
+os.system('/fs/home/jms875/build/lammps/lammps-7Dec15/src/lmp_serial -in %s.in -log %s.log' % (system.name,system.name))
 
