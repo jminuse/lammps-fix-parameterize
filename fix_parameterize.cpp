@@ -120,8 +120,7 @@ FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
 int FixParameterize::setmask()
 {
   int mask = 0;
-  mask |= INITIAL_INTEGRATE;
-  mask |= FINAL_INTEGRATE;
+  mask |= FINAL_INTEGRATE; //say that we need the final_integrate() function
   return mask;
 }
 
@@ -165,17 +164,6 @@ double FixParameterize::calculate_error()
   return squared_error;
 }
 
-void FixParameterize::initial_integrate(int vflag) //modify parameters before the step
-{
-  //modify params_current to make a new guess
-  for(unsigned int i=0; i<params_current.size(); i++) {
-	double dx = (params_upper[i] - params_lower[i]) * 0.2 * random->gaussian();
-    params_current[i] = params_best[i] + dx;
-  }
-  //put parameters into LAMMPS objects so as to calculate forces
-  unpack_params(params_current);
-}
-
 void FixParameterize::final_integrate() //check the results after the step
 {
   if(best_error<0) best_error = calculate_error();
@@ -191,6 +179,14 @@ void FixParameterize::final_integrate() //check the results after the step
   counter_since_last_file_write++;
   if(ready_to_write_file && counter_since_last_file_write>1000)
       write_tersoff_file();
+      
+  //modify params_current to make a new guess for the next step
+  for(unsigned int i=0; i<params_current.size(); i++) {
+	double dx = (params_upper[i] - params_lower[i]) * 0.2 * random->gaussian();
+    params_current[i] = params_best[i] + dx;
+  }
+  //put parameters into LAMMPS objects so as to calculate forces next step
+  unpack_params(params_current);
 }
 
 /*

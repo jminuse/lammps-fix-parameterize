@@ -36,7 +36,6 @@ class FixParameterize : public Fix {
   virtual ~FixParameterize() {}
   int setmask();
   virtual void init();
-  virtual void initial_integrate(int);
   virtual void final_integrate();
 
  protected:
