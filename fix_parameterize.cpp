@@ -143,6 +143,7 @@ void FixParameterize::init()
   if(lj==NULL) error->all(FLERR,"Can't find lj/cut/coul/inout pair style in this run");
   
   pack_params();
+  params_best = params_current;
   
   //get ready to record results
   best_error = -1;
