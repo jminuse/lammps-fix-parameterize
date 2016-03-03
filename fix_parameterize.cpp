@@ -26,6 +26,9 @@
 #include <vector> //for std:vector
 #include <algorithm> //for std:copy
 
+#include <fstream> //for file reading
+#include <string> //for file reading
+
 using namespace LAMMPS_NS;
 using namespace FixConst;
 
@@ -37,12 +40,12 @@ FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
   if (narg != 7)
     error->all(FLERR,"Illegal fix parameterize command: requires input file (target forces), upper bounds file, lower bounds file, and a random seed 1-2^31");
   //get inputs from user
-  char* input_filename = arg[3];
+  char* input_forces_filename = arg[3];
   char* upper_bounds_filename = arg[4];
   char* lower_bounds_filename = arg[5];
   random_seed = force->inumeric(FLERR,arg[6]);
   //read file containing target forces (expecting to be in a flat list, one number on each line)
-  FILE *input_file = fopen(input_filename, "r");
+  FILE *input_file = fopen(input_forces_filename, "r");
   if(input_file==NULL) error->all(FLERR,"No such target-forces file exists");
   
   char buffer[100];
@@ -57,6 +60,57 @@ FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
   tersoff_upper_bound->coeff(5, (char**)tersoff_bounds_args);
   tersoff_bounds_args[2] = lower_bounds_filename;
   tersoff_lower_bound->coeff(5, (char**)tersoff_bounds_args);
+  
+  //read other upper bounds
+  charges_upper.assign(atom->ntypes, 0.0);
+  lj_sigma_upper.assign(atom->ntypes, 0.0);
+  lj_epsilon_upper.assign(atom->ntypes, 0.0);
+  
+  std::ifstream infile(upper_bounds_filename);
+  std::string line;
+  while(std::getline(infile, line)) {
+    if(line.rfind("# Charges:", 0) == 0) {
+      for(int type=0; type < atom->ntypes; type++) {
+		  charges_upper[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+	  }
+	}
+	if(line.rfind("# LJ-sigma:", 0) == 0) {
+      for(int type=0; type < atom->ntypes; type++) {
+		  lj_sigma_upper[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+	  }
+	}
+	if(line.rfind("# LJ-epsilon:", 0) == 0) {
+      for(int type=0; type < atom->ntypes; type++) {
+		  lj_epsilon_upper[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+	  }
+	}
+  }
+  
+  //read other lower bounds
+  charges_lower.assign(atom->ntypes, 0.0);
+  lj_sigma_lower.assign(atom->ntypes, 0.0);
+  lj_epsilon_lower.assign(atom->ntypes, 0.0);
+  
+  std::ifstream infile2(lower_bounds_filename);
+  while(std::getline(infile2, line)) {
+    if(line.rfind("# Charges:", 0) == 0) {
+      for(int type=0; type < atom->ntypes; type++) {
+		  charges_lower[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+	  }
+	}
+	if(line.rfind("# LJ-sigma:", 0) == 0) {
+      for(int type=0; type < atom->ntypes; type++) {
+		  lj_sigma_lower[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+	  }
+	}
+	if(line.rfind("# LJ-epsilon:", 0) == 0) {
+      for(int type=0; type < atom->ntypes; type++) {
+		  lj_epsilon_lower[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+	  }
+	}
+  }
+  
+  
   
   //variables for LAMMPS fix
   dynamic_group_allow = 1; //probably not needed for this fix
@@ -160,7 +214,7 @@ void FixParameterize::write_tersoff_file() {
   //get parameters from flat array back into LAMMPS objects
   unpack_params(params_best);
   //open file
-  FILE *output = fopen("best.tersoff", "w");
+  FILE *output = fopen("best.tersoff", "w"); //todo: make this filename a variable
   //output error
   fprintf(output, "# Error: %g\n", best_error);
   //output charges on one line, listed by type
