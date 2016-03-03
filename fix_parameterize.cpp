@@ -112,7 +112,12 @@ double FixParameterize::calculate_error()
 
 void FixParameterize::initial_integrate(int vflag) //modify parameters before the step
 {
-  //todo: modify params_current here to make a new guess
+  //modify params_current to make a new guess
+  for(unsigned int i=0; i<params_current.size(); i++) {
+	double dx = (params_upper[i] - params_lower[i]) * 0.2 * random->gaussian();
+    params_current[i] = params_best[i] + dx;
+  }
+  //put parameters into LAMMPS objects so as to calculate forces
   unpack_params(params_current);
 }
 
