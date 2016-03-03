@@ -77,7 +77,7 @@ class FixParameterize : public Fix {
   double calculate_error();
   void write_tersoff_file();
   void pack_params();
-  void unpack_params();
+  void unpack_params(std::vector<double> pp);
 };
 
 }

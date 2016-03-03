@@ -23,7 +23,8 @@
 #include "pair_tersoff.h"
 #include "pair_lj_cut_coul_inout.h"
 
-#include <vector>
+#include <vector> //for std:vector
+#include <algorithm> //for std:copy
 
 using namespace LAMMPS_NS;
 using namespace FixConst;
@@ -111,7 +112,8 @@ double FixParameterize::calculate_error()
 
 void FixParameterize::initial_integrate(int vflag) //modify parameters before the step
 {
-  unpack_params();
+  //todo: modify params_current here to make a new guess
+  unpack_params(params_current);
 }
 
 void FixParameterize::final_integrate() //check the results after the step
@@ -121,7 +123,8 @@ void FixParameterize::final_integrate() //check the results after the step
   double new_error = calculate_error();
   
   if(new_error < best_error) {
-    //TODO: copy params_current into params_best here
+    //copy params_current into params_best
+	std::copy ( params_current.begin(), params_current.end(), params_best.begin() );
     best_error = new_error;
     ready_to_write_file = 1;
   }
@@ -150,7 +153,7 @@ void FixParameterize::final_integrate() //check the results after the step
 
 void FixParameterize::write_tersoff_file() {
   //get parameters from flat array back into LAMMPS objects
-  unpack_params();
+  unpack_params(params_best);
   //open file
   FILE *output = fopen("best.tersoff", "w");
   //output error
@@ -228,11 +231,11 @@ void FixParameterize::pack_params() {
   }
 }
 
-#define unpack_param(X,I) if( tersoff_upper_bound->params[i].X > tersoff_lower_bound->params[i].X ) { tersoff->params[i].X = params_current[I]; I++; }
+#define unpack_param(X,I) if( tersoff_upper_bound->params[i].X > tersoff_lower_bound->params[i].X ) { tersoff->params[i].X = pp[I]; I++; }
 
-#define unpack_typewise_param(HI,LO,X,I) if( HI[type]>LO[type] ) { X[type] = params_current[I]; I++; }
+#define unpack_typewise_param(HI,LO,X,I) if( HI[type]>LO[type] ) { X[type] = pp[I]; I++; }
 
-void FixParameterize::unpack_params() {
+void FixParameterize::unpack_params(std::vector<double> pp) {
   int which = 0;
   //unpack Tersoff parameters from the flat array to the LAMMPS object
   for(int i=0; i<tersoff->nparams; i++) {
