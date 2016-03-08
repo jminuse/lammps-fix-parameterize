@@ -29,6 +29,34 @@ for root, dirs, file_list in os.walk("data"):
 			system.add(total, len(system.molecules)*200.0)
 system.box_size[0] = len(system.molecules)*400+200
 
+for root, dirs, file_list in os.walk('orca'):
+	count = 0
+	for d in dirs:
+		print d
+	for ff in file_list:
+		if ff.endswith('.out'):
+			print ff
+				
+		#for step in range(20):
+		#		name = 'PbI2_r%d' % step
+		#		if not name.startswith('PbI') : continue #for PbI testing
+		#		if not name.endswith('_def2SVP'): continue
+		#		energy, atoms = g09.parse_atoms(name, check_convergence=False)
+		#		if len(atoms)>3: continue
+		#		if any([utils.dist(atoms[0], a)>3.5 for a in atoms]) and len(atoms)<6: continue
+		#		total = utils.Molecule('gaussian/'+name, extra_parameters=extra, check_charges=False)
+		#		total.energy = energy*627.509 #convert energy from Hartree to kcal/mol
+		#		total.element_string = ' '.join( [a.element for a in total.atoms] )
+		#		print total.element_string
+		#		for i,a in enumerate(total.atoms):
+		#			b = atoms[i]
+		#			a.x, a.y, a.z = b.x, b.y, b.z
+		#			a.fx, a.fy, a.fz = [f*1185.8113 for f in (b.fx, b.fy, b.fz)] # convert forces from Hartree/Bohr to kcal/mol / Angstrom
+		#		system.add(total, count*200.0)
+		#		count += 1
+
+exit()
+
 os.chdir('lammps')
 files.write_lammps_data(system)
 
