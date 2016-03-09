@@ -85,7 +85,7 @@ for line in commands:
 	lmp.command(line)
 
 #run LAMMPS
-lmp.command('pair_coeff * * tersoff '+system.name+'.tersoff Pb I '+(' NULL'*(len(system.atom_types)-2)) )
+lmp.command('pair_coeff * * tersoff '+system.name+'.tersoff Pb Cl '+(' NULL'*(len(system.atom_types)-2)) )
 
 #for t in system.atom_types:
 #	if hasattr(t,'vdw_e'):
@@ -101,6 +101,7 @@ for t in system.dihedral_types:
 commands = '''
 compute atom_pe all pe/atom
 thermo 0
+neigh_modify once yes
 fix params all parameterize '''+system.name+'''_forces.txt '''+system.name+'''_upper.tersoff '''+system.name+'''_lower.tersoff '''+system.name+'''_best.tersoff '''+random_seed+'''
 run 10000000
 '''

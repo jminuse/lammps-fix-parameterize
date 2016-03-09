@@ -527,7 +527,10 @@ void PairTersoff::setup()
             n = m;
           }
         }
-        if (n < 0) error->all(FLERR,"Potential file is missing an entry");
+        if (n < 0) { 
+          printf("Missing types: %d %d %d\n", i, j, k);
+          error->all(FLERR,"Potential file is missing an entry");
+        }
         elem2param[i][j][k] = n;
       }
 
