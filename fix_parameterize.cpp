@@ -44,32 +44,33 @@ void FixParameterize::read_params_from_comments(const char *filename, std::vecto
   while(std::getline(infile, line)) {
     if(line.rfind("# Charges:", 0) == 0) {
       for(int type=0; type < atom->ntypes; type++) {
-		  charges[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
-	  }
-	}
-	if(line.rfind("# LJ-sigma:", 0) == 0) {
+          charges[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+      }
+    }
+    if(line.rfind("# LJ-sigma:", 0) == 0) {
       for(int type=0; type < atom->ntypes; type++) {
-		  lj_sigma[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+11):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
-	  }
-	}
-	if(line.rfind("# LJ-epsilon:", 0) == 0) {
+          lj_sigma[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+11):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+      }
+    }
+    if(line.rfind("# LJ-epsilon:", 0) == 0) {
       for(int type=0; type < atom->ntypes; type++) {
-		  lj_epsilon[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+13):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
-	  }
-	}
+          lj_epsilon[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+13):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+      }
+    }
   }
 }
 
 FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
   Fix(lmp, narg, arg)
 {
-  if (narg != 7)
-    error->all(FLERR,"Illegal fix parameterize command: requires input file (target forces), upper bounds file, lower bounds file, and a random seed 1-2^31");
+  if (narg != 8)
+    error->all(FLERR,"Illegal fix parameterize command: requires input file (target forces), upper bounds file, lower bounds file, output file, and a random seed 1-2^31");
   //get inputs from user
   char* input_forces_filename = arg[3];
   char* upper_bounds_filename = arg[4];
   char* lower_bounds_filename = arg[5];
-  random_seed = force->inumeric(FLERR,arg[6]);
+  output_filename = arg[6];
+  random_seed = force->inumeric(FLERR,arg[7]);
   //read file containing target forces (expecting to be in a flat list, one number on each line)
   FILE *input_file = fopen(input_forces_filename, "r");
   if(input_file==NULL) error->all(FLERR,"No such target-forces file exists");
@@ -90,6 +91,7 @@ FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
   //read other upper bounds
   read_params_from_comments(upper_bounds_filename, charges_upper, lj_sigma_upper, lj_epsilon_upper);
   read_params_from_comments(lower_bounds_filename, charges_lower, lj_sigma_lower, lj_epsilon_lower);
+  read_params_from_comments((char*) "input.tersoff", charges_current, lj_sigma_current, lj_epsilon_current); //todo: change "input.tersoff" to a user-input variable
   
   //variables for LAMMPS fix
   dynamic_group_allow = 1; //probably not needed for this fix
@@ -124,6 +126,7 @@ void FixParameterize::init()
   
   pack_params();
   params_best = params_current;
+  unpack_params(params_current);
   
   //get ready to record results
   best_error = -1;
@@ -136,7 +139,7 @@ double FixParameterize::calculate_error()
   double **f = atom->f;
   //compare target forces with force vector **f
   double squared_error = 0.0;
-  for(int i=0; i<n_target_forces; i+=3) {
+  for(unsigned int i=0; i<target_forces.size(); i+=3) {
     double dfx = f[i/3][0] - target_forces[i];
     double dfy = f[i/3][1] - target_forces[i+1];
     double dfz = f[i/3][2] - target_forces[i+2];
@@ -147,25 +150,49 @@ double FixParameterize::calculate_error()
 
 void FixParameterize::final_integrate() //check the results after the step
 {
-  if(best_error<0) best_error = calculate_error();
+  if(best_error<0) {
+    best_error = calculate_error();
+    write_tersoff_file();
+  }
   
   double new_error = calculate_error();
   
+  //printf("%.1e    %.1e\n", best_error, new_error);
+  //printf("%d  %d\n", update->nsteps, update->ntimestep);
+  
   if(new_error < best_error) {
     //copy params_current into params_best
-	std::copy ( params_current.begin(), params_current.end(), params_best.begin() );
+    std::copy ( params_current.begin(), params_current.end(), params_best.begin() );
     best_error = new_error;
     ready_to_write_file = 1;
+    printf("New best: %f\n", sqrt(best_error/atom->natoms) );
   }
   counter_since_last_file_write++;
   if(ready_to_write_file && counter_since_last_file_write>1000)
       write_tersoff_file();
       
   //modify params_current to make a new guess for the next step
-  for(unsigned int i=0; i<params_current.size(); i++) {
-	double dx = (params_upper[i] - params_lower[i]) * 0.2 * random->gaussian();
-    params_current[i] = params_best[i] + dx;
+  
+  int RANDOM = 0;
+  int DDS = 1;
+  int method = DDS;
+  
+  if(method==DDS) { //Dynamically Dimensioned Search
+    for(unsigned int i=0; i<params_current.size(); i++) {
+      double fraction_done = 1.0*update->ntimestep/update->nsteps;
+      if( random->uniform() < fraction_done-1.0/params_current.size() ) continue; //skip this param (Dynamically Dimensioned Search)
+      double dx = (params_upper[i] - params_lower[i]) * 0.2 * random->gaussian();
+      params_current[i] = params_best[i] + dx;
+      if(params_current[i] > params_upper[i]) params_current[i] = 2*params_upper[i] - params_current[i]; //reflect across bound
+      if(params_current[i] < params_lower[i]) params_current[i] = 2*params_lower[i] - params_current[i]; //reflect across bound
+    }
   }
+  else if(method==RANDOM) { //Pick a random point within the bounds
+    for(unsigned int i=0; i<params_current.size(); i++) {
+      params_current[i] = params_lower[i] + (params_upper[i]-params_lower[i])*random->uniform();
+    }
+  }
+  
   //put parameters into LAMMPS objects so as to calculate forces next step
   unpack_params(params_current);
 }
@@ -192,20 +219,20 @@ void FixParameterize::write_tersoff_file() {
   //get parameters from flat array back into LAMMPS objects
   unpack_params(params_best);
   //open file
-  FILE *output = fopen("best.tersoff", "w"); //todo: make this filename a variable
+  FILE *output = fopen(output_filename, "w"); //todo: make this filename a variable
   //output error
-  fprintf(output, "# Error: %g\n", best_error);
+  fprintf(output, "# Error: %g\n", sqrt(best_error/atom->natoms) );
   //output charges on one line, listed by type
   fprintf(output, "# Charges: ");
-  for(int type=0; type < atom->ntypes; type++) fprintf(output, "%9.6g", charges_current[type]);
+  for(int type=0; type < atom->ntypes; type++) fprintf(output, " %9.6g ", charges_current[type]);
   fprintf(output, "\n");
   //output LJ sigma on one line, listed by type
   fprintf(output, "# LJ-sigma: ");
-  for(int type=0; type < atom->ntypes; type++) fprintf(output, "%9.6g", lj_sigma_current[type]);
+  for(int type=0; type < atom->ntypes; type++) fprintf(output, " %9.6g ", lj_sigma_current[type]);
   fprintf(output, "\n");
   //output LJ epsilon on one line, listed by type
   fprintf(output, "# LJ-epsilon: ");
-  for(int type=0; type < atom->ntypes; type++) fprintf(output, "%9.6g", lj_epsilon_current[type]);
+  for(int type=0; type < atom->ntypes; type++) fprintf(output, " %9.6g ", lj_epsilon_current[type]);
   fprintf(output, "\n");
   //output Tersoff parameters by pair
   for(int i=0; i<tersoff->nparams; i++) {
@@ -227,25 +254,26 @@ void FixParameterize::write_tersoff_file() {
 void FixParameterize::pack_params() {
   //pack Tersoff parameters into a flat array
   for(int i=0; i<tersoff->nparams; i++) {
-	PairTersoff::Param hi = tersoff_upper_bound->params[i];
-	PairTersoff::Param lo = tersoff_lower_bound->params[i];
-	PairTersoff::Param tt = tersoff->params[i];
-	pack_param(lam1);
-	pack_param(lam2);
-	pack_param(lam3);
-	pack_param(c);
-	pack_param(d);
-	pack_param(h);
-	pack_param(gamma);
-	pack_param(powerm);
-	pack_param(powern);
-	pack_param(beta);
-	pack_param(biga);
-	pack_param(bigb);
-	pack_param(bigd);
-	pack_param(bigr);
-	pack_param(cut);
+    PairTersoff::Param hi = tersoff_upper_bound->params[i];
+    PairTersoff::Param lo = tersoff_lower_bound->params[i];
+    PairTersoff::Param tt = tersoff->params[i];
+    pack_param(lam1);
+    pack_param(lam2);
+    pack_param(lam3);
+    pack_param(c);
+    pack_param(d);
+    pack_param(h);
+    pack_param(gamma);
+    pack_param(powerm);
+    pack_param(powern);
+    pack_param(beta);
+    pack_param(biga);
+    pack_param(bigb);
+    pack_param(bigd);
+    pack_param(bigr);
+    pack_param(cut);
   }
+  /*
   //get other parameters
   for(int type=0; type < atom->ntypes; type++) {
     //charges belong to atoms, so we must find an atom with type i. LAMMPS types start at 1, not 0. 
@@ -260,11 +288,12 @@ void FixParameterize::pack_params() {
     lj_sigma_current.push_back( lj->sigma[type+1][type+1] );
     lj_epsilon_current.push_back( lj->epsilon[type+1][type+1] );
   }
+  */
   //pack other parameters into a flat array
   for(int type=0; type < atom->ntypes; type++) {
-	pack_typewise_param(charges_upper, charges_lower, charges_current);
-	pack_typewise_param(lj_sigma_upper, lj_sigma_lower, lj_sigma_current);
-	pack_typewise_param(lj_epsilon_upper, lj_epsilon_lower, lj_epsilon_current);
+    pack_typewise_param(charges_upper, charges_lower, charges_current);
+    pack_typewise_param(lj_sigma_upper, lj_sigma_lower, lj_sigma_current);
+    pack_typewise_param(lj_epsilon_upper, lj_epsilon_lower, lj_epsilon_current);
   }
 }
 
@@ -276,31 +305,31 @@ void FixParameterize::unpack_params(std::vector<double> pp) {
   int which = 0;
   //unpack Tersoff parameters from the flat array to the LAMMPS object
   for(int i=0; i<tersoff->nparams; i++) {
-	unpack_param(lam1, which);
-	unpack_param(lam2, which);
-	unpack_param(lam3, which);
-	unpack_param(c, which);
-	unpack_param(d, which);
-	unpack_param(h, which);
-	unpack_param(gamma, which);
-	unpack_param(powerm, which);
-	unpack_param(powern, which);
-	unpack_param(beta, which);
-	unpack_param(biga, which);
-	unpack_param(bigb, which);
-	unpack_param(bigd, which);
-	unpack_param(bigr, which);
-	unpack_param(cut, which);
-	
-	//recalculate resulting parameters: cut, cutsq, c1, c2, c3, c4, and cutmax
-	tersoff->params[i].cut = tersoff->params[i].bigr + tersoff->params[i].bigd;
-	tersoff->params[i].cutsq = tersoff->params[i].cut*tersoff->params[i].cut;
-	tersoff->params[i].c1 = pow(2.0*tersoff->params[i].powern*1.0e-16,-1.0/tersoff->params[i].powern);
-	tersoff->params[i].c2 = pow(2.0*tersoff->params[i].powern*1.0e-8,-1.0/tersoff->params[i].powern);
-	tersoff->params[i].c3 = 1.0/tersoff->params[i].c2;
-	tersoff->params[i].c4 = 1.0/tersoff->params[i].c1;
-	if(tersoff->cutmax < tersoff->params[i].cut)
-	  tersoff->cutmax = tersoff->params[i].cut;
+    unpack_param(lam1, which);
+    unpack_param(lam2, which);
+    unpack_param(lam3, which);
+    unpack_param(c, which);
+    unpack_param(d, which);
+    unpack_param(h, which);
+    unpack_param(gamma, which);
+    unpack_param(powerm, which);
+    unpack_param(powern, which);
+    unpack_param(beta, which);
+    unpack_param(biga, which);
+    unpack_param(bigb, which);
+    unpack_param(bigd, which);
+    unpack_param(bigr, which);
+    unpack_param(cut, which);
+    
+    //recalculate resulting parameters: cut, cutsq, c1, c2, c3, c4, and cutmax
+    tersoff->params[i].cut = tersoff->params[i].bigr + tersoff->params[i].bigd;
+    tersoff->params[i].cutsq = tersoff->params[i].cut*tersoff->params[i].cut;
+    tersoff->params[i].c1 = pow(2.0*tersoff->params[i].powern*1.0e-16,-1.0/tersoff->params[i].powern);
+    tersoff->params[i].c2 = pow(2.0*tersoff->params[i].powern*1.0e-8,-1.0/tersoff->params[i].powern);
+    tersoff->params[i].c3 = 1.0/tersoff->params[i].c2;
+    tersoff->params[i].c4 = 1.0/tersoff->params[i].c1;
+    if(tersoff->cutmax < tersoff->params[i].cut)
+      tersoff->cutmax = tersoff->params[i].cut;
   }
   //unpack other parameters from the flat array to the LAMMPS object
   for(int type=0; type < atom->ntypes; type++) {

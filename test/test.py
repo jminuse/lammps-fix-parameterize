@@ -37,8 +37,9 @@ def read_old_gaussian():
 					energy, atoms = result
 					name = name[:-4]
 					print name, '\t', ' '.join([a.element for a in atoms])
-					if os.path.isdir('orca/'+name):
-						#orca.job(name, '! B97-D3 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} Grid3 FinalGrid5 SlowConv', atoms, queue=None, grad=True, previous=name).wait()
+					if not os.path.isdir('orca/'+name):
+						if len(atoms)>3: continue
+						orca.job(name, '! B97-D3 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} Grid3 FinalGrid5 SlowConv', atoms, queue=None, grad=True).wait()
 						for a in atoms:
 							if a.element=='Pb': a.label='907'
 							if a.element=='Cl': a.label='344'

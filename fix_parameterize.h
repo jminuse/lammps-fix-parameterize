@@ -40,12 +40,12 @@ class FixParameterize : public Fix {
 
  protected:
   int random_seed;
-  int n_target_forces;
-  std::vector<double> target_forces;
   RanMars *random;
   double best_error;
+  std::vector<double> target_forces;
   int counter_since_last_file_write;
   int ready_to_write_file;
+  char *output_filename;
   
   //tersoff values, per pair of atom types
   PairTersoff *tersoff;
