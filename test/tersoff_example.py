@@ -49,6 +49,10 @@ system.box_size[0] = len(system.molecules)*400+200
 
 os.chdir('lammps')
 files.write_lammps_data(system)
+f = open('test_log.txt','w')
+for t in system.atom_types:
+	f.write(str(t)+' ')
+f.close()
 
 shutil.copy('input.tersoff', system.name+'.tersoff')
 shutil.copy('upper_bounds.tersoff', system.name+'_upper.tersoff')
@@ -104,5 +108,5 @@ for line in commands.splitlines():
 	lmp.command(line)
 
 lmp.file.close()
-os.system('/fs/home/jms875/build/lammps/lammps-7Dec15/src/lmp_serial -in %s.in -log %s.log' % (system.name,system.name))
+os.system('../lmp_serial -in %s.in -log %s.log' % (system.name,system.name))
 
