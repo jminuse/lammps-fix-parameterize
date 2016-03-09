@@ -77,6 +77,7 @@ class FixParameterize : public Fix {
   void write_tersoff_file();
   void pack_params();
   void unpack_params(std::vector<double> pp);
+  void read_params_from_comments(const char *filename, std::vector<double> &charges, std::vector<double> &lj_sigma, std::vector<double> &lj_epsilon);
 };
 
 }

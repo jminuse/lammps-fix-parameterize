@@ -7,7 +7,7 @@ SHELL = /bin/sh
 # specify flags and libraries needed for your compiler
 
 CC =		/usr/local/gcc/4.9.2/bin/g++    #or just g++, but that means no -Ofast. If needed, --verbose. Probably -Xlinker does nothing. 
-CCFLAGS =	-g -Ofast -m64 -static-libgcc -static-libstdc++ -Wall -Wextra -Werror #need -static because system default glibcxx is too old
+CCFLAGS =	-g -Ofast -m64 -static-libgcc -static-libstdc++ -Wall -Wextra #-Werror #need -static because system default glibcxx is too old
 SHFLAGS =	-fPIC
 DEPFLAGS =	-M
 

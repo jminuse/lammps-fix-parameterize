@@ -34,6 +34,32 @@ using namespace FixConst;
 
 /* ---------------------------------------------------------------------- */
 
+void FixParameterize::read_params_from_comments(const char *filename, std::vector<double> &charges, std::vector<double> &lj_sigma, std::vector<double> &lj_epsilon) {
+  charges.assign(atom->ntypes, 0.0);
+  lj_sigma.assign(atom->ntypes, 0.0);
+  lj_epsilon.assign(atom->ntypes, 0.0);
+  
+  std::ifstream infile(filename);
+  std::string line;
+  while(std::getline(infile, line)) {
+    if(line.rfind("# Charges:", 0) == 0) {
+      for(int type=0; type < atom->ntypes; type++) {
+		  charges[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+	  }
+	}
+	if(line.rfind("# LJ-sigma:", 0) == 0) {
+      for(int type=0; type < atom->ntypes; type++) {
+		  lj_sigma[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+11):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+	  }
+	}
+	if(line.rfind("# LJ-epsilon:", 0) == 0) {
+      for(int type=0; type < atom->ntypes; type++) {
+		  lj_epsilon[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+13):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+	  }
+	}
+  }
+}
+
 FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
   Fix(lmp, narg, arg)
 {
@@ -62,53 +88,8 @@ FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
   tersoff_lower_bound->coeff(5, (char**)tersoff_bounds_args);
   
   //read other upper bounds
-  charges_upper.assign(atom->ntypes, 0.0);
-  lj_sigma_upper.assign(atom->ntypes, 0.0);
-  lj_epsilon_upper.assign(atom->ntypes, 0.0);
-  
-  std::ifstream infile(upper_bounds_filename);
-  std::string line;
-  while(std::getline(infile, line)) {
-    if(line.rfind("# Charges:", 0) == 0) {
-      for(int type=0; type < atom->ntypes; type++) {
-		  charges_upper[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
-	  }
-	}
-	if(line.rfind("# LJ-sigma:", 0) == 0) {
-      for(int type=0; type < atom->ntypes; type++) {
-		  lj_sigma_upper[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+11):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
-	  }
-	}
-	if(line.rfind("# LJ-epsilon:", 0) == 0) {
-      for(int type=0; type < atom->ntypes; type++) {
-		  lj_epsilon_upper[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+13):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
-	  }
-	}
-  }
-  
-  //read other lower bounds
-  charges_lower.assign(atom->ntypes, 0.0);
-  lj_sigma_lower.assign(atom->ntypes, 0.0);
-  lj_epsilon_lower.assign(atom->ntypes, 0.0);
-  
-  std::ifstream infile2(lower_bounds_filename);
-  while(std::getline(infile2, line)) {
-    if(line.rfind("# Charges:", 0) == 0) {
-      for(int type=0; type < atom->ntypes; type++) {
-		  charges_lower[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
-	  }
-	}
-	if(line.rfind("# LJ-sigma:", 0) == 0) {
-      for(int type=0; type < atom->ntypes; type++) {
-		  lj_sigma_lower[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+11):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
-	  }
-	}
-	if(line.rfind("# LJ-epsilon:", 0) == 0) {
-      for(int type=0; type < atom->ntypes; type++) {
-		  lj_epsilon_lower[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+13):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
-	  }
-	}
-  }
+  read_params_from_comments(upper_bounds_filename, charges_upper, lj_sigma_upper, lj_epsilon_upper);
+  read_params_from_comments(lower_bounds_filename, charges_lower, lj_sigma_lower, lj_epsilon_lower);
   
   //variables for LAMMPS fix
   dynamic_group_allow = 1; //probably not needed for this fix

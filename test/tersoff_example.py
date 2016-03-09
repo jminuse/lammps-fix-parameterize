@@ -2,60 +2,35 @@ from merlin import *
 import shutil
 
 I_ = 66
+Cl_ = 21
 H_ = 54
 N_ = 53
 Pb_ = 111
 
 Pb = 907
 I = 838
+Cl = 344
 
 extra = {
 	(H_, I_): (100.0, 2.1), 
 	(N_, H_, I_): (10.0, 180.0), 
-	Pb: utils.Struct(index=Pb, index2=Pb_, element_name='Pb', element=82, mass=207.2, charge=0.4, vdw_e=0.1, vdw_r=2.0, D0=5.0, alpha=1.5, r0=2.8),
-	I: utils.Struct(index=I, index2=I_, element_name='I', element=53, mass=126.9, charge=-0.2, vdw_e=0.1, vdw_r=2.0, D0=5.0, alpha=1.5, r0=2.8),
-	(Pb_, I_): (100.0, 2.9), 
-	(I_, Pb_, I_): (10.0, 95.0),
-	(13, 53, 54, 66): (0.0,0.0,0.0),
-	(54, 53, 54, 66): (0.0,0.0,0.0),
+	Pb: utils.Struct(index=Pb, index2=Pb_, element_name='Pb', element=82, mass=207.2, charge=0.4, vdw_e=0.1, vdw_r=3.0),
+	I: utils.Struct(index=I, index2=I_, element_name='I', element=53, mass=126.9, charge=-0.2, vdw_e=0.1, vdw_r=2.5),
+	Cl: utils.Struct(index=I, index2=Cl_, element_name='Cl', element=17, mass=35.435, charge=-0.2, vdw_e=0.1, vdw_r=2.0),
 }
 
 system = utils.System(box_size=[1e3, 1e3, 1e3], name='test0')
 
-for root, dirs, file_list in os.walk("data"):
-	for ff in file_list:
-		if ff.endswith('.cml'):
-			total = utils.Molecule('data/'+ff, extra_parameters=extra, check_charges=False)
-			system.add(total, len(system.molecules)*200.0)
+for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
+	directories = next(os.walk(outer+'orca'))[1]
+	for directory in directories:
+		atoms, energy = orca.engrad_read(outer+'orca/'+directory+'/'+directory+'.orca.engrad')
+		with_bonds = utils.Molecule(outer+'orca/'+directory+'/system.cml', extra_parameters=extra, check_charges=False)
+		for a,b in zip(atoms,with_bonds.atoms):
+			b.fx, b.fy, b.fz = a.fx, a.fy, a.fz
+		system.add(with_bonds, len(system.molecules)*200.0)
+
 system.box_size[0] = len(system.molecules)*400+200
-
-for root, dirs, file_list in os.walk('orca'):
-	count = 0
-	for d in dirs:
-		print d
-	for ff in file_list:
-		if ff.endswith('.out'):
-			print ff
-				
-		#for step in range(20):
-		#		name = 'PbI2_r%d' % step
-		#		if not name.startswith('PbI') : continue #for PbI testing
-		#		if not name.endswith('_def2SVP'): continue
-		#		energy, atoms = g09.parse_atoms(name, check_convergence=False)
-		#		if len(atoms)>3: continue
-		#		if any([utils.dist(atoms[0], a)>3.5 for a in atoms]) and len(atoms)<6: continue
-		#		total = utils.Molecule('gaussian/'+name, extra_parameters=extra, check_charges=False)
-		#		total.energy = energy*627.509 #convert energy from Hartree to kcal/mol
-		#		total.element_string = ' '.join( [a.element for a in total.atoms] )
-		#		print total.element_string
-		#		for i,a in enumerate(total.atoms):
-		#			b = atoms[i]
-		#			a.x, a.y, a.z = b.x, b.y, b.z
-		#			a.fx, a.fy, a.fz = [f*1185.8113 for f in (b.fx, b.fy, b.fz)] # convert forces from Hartree/Bohr to kcal/mol / Angstrom
-		#		system.add(total, count*200.0)
-		#		count += 1
-
-exit()
 
 os.chdir('lammps')
 files.write_lammps_data(system)
@@ -64,7 +39,6 @@ shutil.copy('md_tersoff.tersoff', system.name+'.tersoff')
 
 f = open('target_forces.txt', 'w')
 for a in system.atoms:
-	a.fx, a.fy, a.fz = 0.0, 0.0, 0.0
 	f.write("%e\n%e\n%e\n" % (a.fx, a.fy, a.fz) )
 f.close()
 
