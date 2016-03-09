@@ -83,7 +83,7 @@ FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
   //read Tersoff bounds
   tersoff_upper_bound = new PairTersoff(lmp);
   tersoff_lower_bound = new PairTersoff(lmp);
-  const char *tersoff_bounds_args[] = {"*", "*", upper_bounds_filename, "Pb", "I"};
+  const char *tersoff_bounds_args[] = {"*", "*", upper_bounds_filename, "Pb", "Cl"}; //todo: must fit elements
   tersoff_upper_bound->coeff(5, (char**)tersoff_bounds_args);
   tersoff_bounds_args[2] = lower_bounds_filename;
   tersoff_lower_bound->coeff(5, (char**)tersoff_bounds_args);
@@ -143,7 +143,9 @@ double FixParameterize::calculate_error()
     double dfx = f[i/3][0] - target_forces[i];
     double dfy = f[i/3][1] - target_forces[i+1];
     double dfz = f[i/3][2] - target_forces[i+2];
-    squared_error += dfx*dfx + dfy*dfy + dfz*dfz;
+    double target_magnitude = target_forces[i]*target_forces[i] + target_forces[i+1]*target_forces[i+1] + target_forces[i+2]*target_forces[i+2];
+    double small_magnitude = 1e-4;
+    squared_error += (dfx*dfx + dfy*dfy + dfz*dfz) / (target_magnitude+small_magnitude);
   }
   return squared_error;
 }
@@ -175,7 +177,7 @@ void FixParameterize::final_integrate() //check the results after the step
   
   int RANDOM = 0;
   int DDS = 1;
-  int method = DDS;
+  int method = RANDOM;
   
   if(method==DDS) { //Dynamically Dimensioned Search
     for(unsigned int i=0; i<params_current.size(); i++) {
