@@ -99,7 +99,7 @@ compute atom_pe all pe/atom
 thermo 0
 neigh_modify once yes
 fix params all parameterize '''+system.name+'''_forces.txt '''+system.name+'''_upper.tersoff '''+system.name+'''_lower.tersoff '''+system.name+'''_best.tersoff '''+random_seed+'''
-run 10000000
+run 1000000
 '''
 for line in commands.splitlines():
 	lmp.command(line)
