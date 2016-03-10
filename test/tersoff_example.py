@@ -31,10 +31,10 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 	for directory in directories:
 		if not os.path.isfile(outer+'orca/'+directory+'/'+directory+'.orca.engrad'): continue
 		atoms, energy = orca.engrad_read(outer+'orca/'+directory+'/'+directory+'.orca.engrad')
-		if len(atoms)>6: continue
-		if energy > -1113.8: continue
+		if len(atoms)>3: continue
+		if energy > -1113.857: continue
 		#print directory, energy
-		#energies.append(energy)
+		energies.append(energy)
 		with_bonds = utils.Molecule(outer+'orca/'+directory+'/system.cml', extra_parameters=extra, check_charges=False)
 		for a,b in zip(atoms,with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
@@ -99,7 +99,7 @@ compute atom_pe all pe/atom
 thermo 0
 neigh_modify once yes
 fix params all parameterize '''+system.name+'''_forces.txt '''+system.name+'''_upper.tersoff '''+system.name+'''_lower.tersoff '''+system.name+'''_best.tersoff '''+random_seed+'''
-run 1000000
+run 100000000
 '''
 for line in commands.splitlines():
 	lmp.command(line)
