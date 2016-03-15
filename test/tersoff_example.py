@@ -24,7 +24,7 @@ extra = {
 
 system = utils.System(box_size=[1e3, 1e3, 1e3], name=run_name)
 
-energies = []
+systems_by_composition = {}
 
 for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 	directories = next(os.walk(outer+'orca'))[1]
@@ -32,14 +32,23 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 		if not os.path.isfile(outer+'orca/'+directory+'/'+directory+'.orca.engrad'): continue
 		atoms, energy = orca.engrad_read(outer+'orca/'+directory+'/'+directory+'.orca.engrad')
 		if len(atoms)>3: continue
-		if energy > -1113.857: continue
 		#print directory, energy
 		energies.append(energy)
 		with_bonds = utils.Molecule(outer+'orca/'+directory+'/system.cml', extra_parameters=extra, check_charges=False)
 		for a,b in zip(atoms,with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
 			b.fx, b.fy, b.fz = a.fx*convert, a.fy*convert, a.fz*convert
-		system.add(with_bonds, len(system.molecules)*200.0)
+		with_bonds.energy = energy
+		key = ' '.join(sorted([a.element for a in atoms]))
+		if key not in systems_by_composition:
+			systems_by_composition[key] = []
+		systems_by_composition[key].append(with_bonds)
+
+for key in systems_by_composition: #within each type of system, lowest energy must be first and equal to 0.0
+	systems_by_composition[key].sort(lambda s:s.energy)
+	for s in systems_by_composition[key]:
+		s.energy -= systems_by_composition[key][0].energy
+		system.add(s, len(system.molecules)*1000.0)
 
 #energies.sort()
 #print [e-energies[0] for e in energies]
@@ -58,9 +67,15 @@ shutil.copy('input.tersoff', system.name+'.tersoff')
 shutil.copy('upper_bounds.tersoff', system.name+'_upper.tersoff')
 shutil.copy('lower_bounds.tersoff', system.name+'_lower.tersoff')
 
+# write forces to a file
 f = open(system.name+'_forces.txt', 'w')
 for a in system.atoms:
 	f.write("%e\n%e\n%e\n" % (a.fx, a.fy, a.fz) )
+f.close()
+# write energies to a file
+f = open(system.name+'_energies.txt', 'w')
+for m in system.molecules:
+	f.write("%e\n" % (m.energy) )
 f.close()
 
 commands = ('''units real
@@ -102,7 +117,7 @@ commands = '''
 compute atom_pe all pe/atom
 thermo 0
 neigh_modify once yes
-fix params all parameterize '''+system.name+'''_forces.txt '''+system.name+'''_upper.tersoff '''+system.name+'''_lower.tersoff '''+system.name+'''_best.tersoff '''+random_seed+'''
+fix params all parameterize '''+system.name+'''_forces.txt  '''+system.name+'''_energies.txt  '''+system.name+'''_upper.tersoff '''+system.name+'''_lower.tersoff '''+system.name+'''_best.tersoff '''+random_seed+'''
 run 100000000
 '''
 for line in commands.splitlines():
