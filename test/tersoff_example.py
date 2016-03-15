@@ -109,5 +109,5 @@ for line in commands.splitlines():
 	lmp.command(line)
 
 lmp.file.close()
-os.system('../lmp_serial -in %s.in -log %s.log' % (system.name,system.name))
+os.system('~/build/lammps-16Feb16/src/lmp_serial -in %s.in -log %s.log' % (system.name,system.name))
 
