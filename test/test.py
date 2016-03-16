@@ -27,6 +27,8 @@ def read_old_gaussian():
 	for root, dirs, file_list in os.walk(source_directory):
 		for name in file_list:
 			if name.endswith('.log'):
+				print name
+				continue
 				if not (name.startswith('PbCl2') or name.startswith('PbCl_24')): continue
 				if not '_vac' in name: continue
 				if '_new_' in name : continue
@@ -44,5 +46,29 @@ def read_old_gaussian():
 							if a.element=='Pb': a.label='907'
 							if a.element=='Cl': a.label='344'
 						files.write_cml(atoms, name='orca/'+name+'/system.cml')
-read_old_gaussian()
+
+def read_old_gaussian_pairs():
+	source_directory = '/fs/home/wmc62/Documents/perovskites/smrff/gaussian'
+	for root, dirs, file_list in os.walk(source_directory):
+		for name in file_list:
+			if name.endswith('.log'):
+				if not name.startswith('PbI+'): continue
+				if name.endswith('SVP.log'): continue
+				if '_' not in name: continue
+				result = g09.parse_atoms(source_directory+'/'+name, check_convergence=True)
+				if result:
+					energy, atoms = result
+					name = name[:-4]
+					name = name.replace('I','Cl')
+					for a in atoms: 
+						if a.element=='I': a.element='Cl'
+					print name, '\t', ' '.join([a.element for a in atoms])
+
+					orca.job(name, '! B97-D3 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} Grid3 FinalGrid5 SlowConv', atoms, queue=None, grad=True, charge_and_multiplicity='1 1').wait()
+					for a in atoms:
+						if a.element=='Pb': a.label='907'
+						if a.element=='Cl': a.label='344'
+					files.write_cml(atoms, name='orca/'+name+'/system.cml')
+
+read_old_gaussian_pairs()
 

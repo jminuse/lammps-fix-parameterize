@@ -179,7 +179,7 @@ void FixParameterize::final_integrate() //check the results after the step
   
   int RANDOM = 0;
   int DDS = 1;
-  int method = RANDOM;
+  int method = DDS;
   
   if(method==DDS) { //Dynamically Dimensioned Search
     for(unsigned int i=0; i<params_current.size(); i++) {

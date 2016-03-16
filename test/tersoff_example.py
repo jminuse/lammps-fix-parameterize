@@ -31,8 +31,8 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 	for directory in directories:
 		if not os.path.isfile(outer+'orca/'+directory+'/'+directory+'.orca.engrad'): continue
 		atoms, energy = orca.engrad_read(outer+'orca/'+directory+'/'+directory+'.orca.engrad')
-		if len(atoms)>3: continue
-		if energy > -1113.857: continue
+		if len(atoms)>2: continue
+		#if energy > -1113.857: continue
 		#print directory, energy
 		energies.append(energy)
 		with_bonds = utils.Molecule(outer+'orca/'+directory+'/system.cml', extra_parameters=extra, check_charges=False)
