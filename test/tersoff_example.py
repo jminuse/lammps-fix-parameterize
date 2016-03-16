@@ -44,22 +44,21 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 
 for composition in systems_by_composition: #within each type of system, lowest energy must be first and equal to 0.0
 	systems_by_composition[composition].sort(key=lambda s:s.energy)
+	baseline_energy = systems_by_composition[composition][0].energy
 	for s in systems_by_composition[composition]:
-		s.energy -= systems_by_composition[composition][0].energy
+		s.energy -= baseline_energy
+		s.energy *= 627.5 #Convert Hartree to kcal/mol
 		system.add(s, len(system.molecules)*1000.0)
 
-#energies.sort()
-#print [e-energies[0] for e in energies]
-#exit()
-
-system.box_size[0] = len(system.molecules)*400+200
+system.box_size[0] = len(system.molecules)*1000.0*2+200.0
 
 os.chdir('lammps')
 files.write_lammps_data(system)
-f = open('test_log.txt','w')
-for t in system.atom_types:
-	f.write(str(t)+' ')
-f.close()
+
+#f = open('test_log.txt','w')
+#for t in system.atom_types:
+#	f.write(str(t)+' ')
+#f.close()
 
 shutil.copy('input.tersoff', system.name+'.tersoff')
 shutil.copy('upper_bounds.tersoff', system.name+'_upper.tersoff')
@@ -115,6 +114,12 @@ commands = '''
 compute atom_pe all pe/atom
 thermo 0
 neigh_modify once yes
+
+compute sum_pe all reduce sum c_atom_pe #pile of kludges to make compute pe/atom actually run
+fix average all ave/time 1 1000 1000 c_sum_pe #pile of kludges to make compute pe/atom actually run
+thermo_style custom f_average #pile of kludges to make compute pe/atom actually run
+#thermo 1000
+
 fix params all parameterize '''+system.name+'''_forces.txt  '''+system.name+'''_energies.txt  '''+system.name+'''_upper.tersoff '''+system.name+'''_lower.tersoff '''+system.name+'''_best.tersoff '''+random_seed+'''
 run 100000000
 '''

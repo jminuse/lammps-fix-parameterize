@@ -25,6 +25,7 @@ FixStyle(parameterize,FixParameterize)
 #include "random_mars.h"
 #include "pair_tersoff.h"
 #include "pair_lj_cut_coul_inout.h"
+#include "compute.h" //for compute_pe
 
 #include <vector>
 
@@ -45,10 +46,13 @@ class FixParameterize : public Fix {
   std::vector<double> target_forces;
   std::vector<double> target_energies;
   std::vector<double> current_energies;
-  double* atomwise_energies;
+  //double* atomwise_energies;
   int counter_since_last_file_write;
   int ready_to_write_file;
   char *output_filename;
+  
+  Compute *compute_pe;
+  Compute *compute_sum_pe;
   
   //tersoff values, per pair of atom types
   PairTersoff *tersoff;
