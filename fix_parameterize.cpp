@@ -22,6 +22,7 @@
 #include "random_mars.h" //random number generator, Marsaglia style
 #include "pair_tersoff.h"
 #include "pair_lj_cut_coul_inout.h"
+#include "compute.h" //for compute pe/atom
 
 #include <vector> //for std:vector
 #include <algorithm> //for std:copy
@@ -63,19 +64,28 @@ void FixParameterize::read_params_from_comments(const char *filename, std::vecto
 FixParameterize::FixParameterize(LAMMPS *lmp, int narg, char **arg) :
   Fix(lmp, narg, arg)
 {
-  if (narg != 8)
-    error->all(FLERR,"Illegal fix parameterize command: requires input file (target forces), upper bounds file, lower bounds file, output file, and a random seed 1-2^31");
+  if (narg != 9)
+    error->all(FLERR,"Illegal fix parameterize command: requires input files (target forces, target energies), upper bounds file, lower bounds file, output file, and a random seed 1-2^31");
   //get inputs from user
   char* input_forces_filename = arg[3];
-  char* upper_bounds_filename = arg[4];
-  char* lower_bounds_filename = arg[5];
-  output_filename = arg[6];
-  random_seed = force->inumeric(FLERR,arg[7]);
+  char* input_energies_filename = arg[4];
+  char* upper_bounds_filename = arg[5];
+  char* lower_bounds_filename = arg[6];
+  output_filename = arg[7];
+  random_seed = force->inumeric(FLERR,arg[8]);
+  
+  //read file containing target energies (expecting to be in a flat list, one number on each line)
+  FILE *input_file = fopen(input_energies_filename, "r");
+  if(input_file==NULL) error->all(FLERR,"No such target-energies file exists");
+  char buffer[100];
+  while(fscanf(input_file, "%s\n", (char*)&buffer) != EOF) //read the forces
+    target_energies.push_back( force->numeric(FLERR,buffer) );
+  fclose(input_file);
+  current_energies = target_energies;
   
   //read file containing target forces (expecting to be in a flat list, one number on each line)
-  FILE *input_file = fopen(input_forces_filename, "r");
+  input_file = fopen(input_forces_filename, "r");
   if(input_file==NULL) error->all(FLERR,"No such target-forces file exists");
-  char buffer[100];
   while(fscanf(input_file, "%s\n", (char*)&buffer) != EOF) //read the forces
     target_forces.push_back( force->numeric(FLERR,buffer) );
   fclose(input_file);
@@ -116,6 +126,10 @@ void FixParameterize::init()
   tersoff = (PairTersoff*) force->pair_match("tersoff",1,0);
   if(tersoff==NULL) error->all(FLERR,"Can't find Tersoff pair style in this run");
   
+  int id = modify->find_compute("pe/atom");
+  if (id < 0) error->all(FLERR,"Minimization could not find pe/atom compute");
+  atomwise_energies = modify->compute[id]->vector_atom;
+  
   printf("tersoff nparams = %d\n", tersoff->nparams);
   for(int i=0; i<tersoff->nparams; i++) {
     printf("tersoff elements = %d %d %d, A = %f\n", tersoff->params[i].ielement, tersoff->params[i].jelement, tersoff->params[i].kelement, tersoff->params[i].biga);
@@ -137,19 +151,37 @@ void FixParameterize::init()
 double FixParameterize::calculate_error()
 {
   double **f = atom->f;
+  double **x = atom->x;
   //compare target forces with force vector **f
-  double squared_error = 0.0;
+  double force_error = 0.0;
   for(unsigned int i=0; i<target_forces.size(); i+=3) {
     double dfx = f[i/3][0] - target_forces[i];
     double dfy = f[i/3][1] - target_forces[i+1];
     double dfz = f[i/3][2] - target_forces[i+2];
     double target_magnitude = target_forces[i]*target_forces[i] + target_forces[i+1]*target_forces[i+1] + target_forces[i+2]*target_forces[i+2];
     double small_magnitude = 1e-4;
-    squared_error += (dfx*dfx + dfy*dfy + dfz*dfz) / (target_magnitude+small_magnitude);
-    //printf("%e\n%e\n%e\n", f[i/3][0], f[i/3][1], f[i/3][2]);
+    force_error += (dfx*dfx + dfy*dfy + dfz*dfz) / (target_magnitude+small_magnitude);
   }
-  //exit(0);
-  return squared_error;
+  //get current energies
+  std::fill(current_energies.begin(), current_energies.end(), 0.0);
+  for(unsigned int i=0; i<atom->natoms; i++) {
+    current_energies[ int((x[i][0]+100.0)/1000.0) ] += atomwise_energies[i];
+  }
+  //set baseline for each system
+  unsigned int baseline_index = 0;
+  for(unsigned int i=0; i<target_energies.size(); i++) {
+    if(target_energies[i]==0.0)
+      baseline_index = i;
+    current_energies[i] -= current_energies[baseline_index];
+  }
+  //compare target energies
+  double kT = 0.6;
+  double energy_error = 0.0;
+  for(unsigned int i=0; i<target_energies.size(); i++) {
+    double error = (target_energies[i]-current_energies[i])/(target_energies[i]+kT);
+    energy_error += error*error;
+  }
+  return force_error + energy_error;
 }
 
 void FixParameterize::final_integrate() //check the results after the step

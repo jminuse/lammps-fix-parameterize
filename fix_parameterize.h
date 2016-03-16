@@ -43,6 +43,9 @@ class FixParameterize : public Fix {
   RanMars *random;
   double best_error;
   std::vector<double> target_forces;
+  std::vector<double> target_energies;
+  std::vector<double> current_energies;
+  double* atomwise_energies;
   int counter_since_last_file_write;
   int ready_to_write_file;
   char *output_filename;
