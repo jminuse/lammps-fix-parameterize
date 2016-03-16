@@ -32,21 +32,20 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 		if not os.path.isfile(outer+'orca/'+directory+'/'+directory+'.orca.engrad'): continue
 		atoms, energy = orca.engrad_read(outer+'orca/'+directory+'/'+directory+'.orca.engrad')
 		if len(atoms)>2: continue
-		energies.append(energy)
 		with_bonds = utils.Molecule(outer+'orca/'+directory+'/system.cml', extra_parameters=extra, check_charges=False)
 		for a,b in zip(atoms,with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
 			b.fx, b.fy, b.fz = a.fx*convert, a.fy*convert, a.fz*convert
 		with_bonds.energy = energy
-		key = ' '.join(sorted([a.element for a in atoms]))
-		if key not in systems_by_composition:
-			systems_by_composition[key] = []
-		systems_by_composition[key].append(with_bonds)
+		composition = ' '.join(sorted([a.element for a in atoms]))
+		if composition not in systems_by_composition:
+			systems_by_composition[composition] = []
+		systems_by_composition[composition].append(with_bonds)
 
-for key in systems_by_composition: #within each type of system, lowest energy must be first and equal to 0.0
-	systems_by_composition[key].sort(lambda s:s.energy)
-	for s in systems_by_composition[key]:
-		s.energy -= systems_by_composition[key][0].energy
+for composition in systems_by_composition: #within each type of system, lowest energy must be first and equal to 0.0
+	systems_by_composition[composition].sort(key=lambda s:s.energy)
+	for s in systems_by_composition[composition]:
+		s.energy -= systems_by_composition[composition][0].energy
 		system.add(s, len(system.molecules)*1000.0)
 
 #energies.sort()
@@ -123,5 +122,5 @@ for line in commands.splitlines():
 	lmp.command(line)
 
 lmp.file.close()
-os.system('~/build/lammps-16Feb16/src/lmp_serial -in %s.in -log %s.log' % (system.name,system.name))
+os.system('../../lmp_serial -in %s.in -log %s.log' % (system.name,system.name))
 
