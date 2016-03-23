@@ -17,9 +17,9 @@ Cl = 344
 extra = {
 	(H_, I_): (100.0, 2.1), 
 	(N_, H_, I_): (10.0, 180.0), 
-	Pb: utils.Struct(index=Pb, index2=Pb_, element_name='Pb', element=82, mass=207.2, charge=0.4, vdw_e=0.1, vdw_r=3.0),
-	I: utils.Struct(index=I, index2=I_, element_name='I', element=53, mass=126.9, charge=-0.2, vdw_e=0.1, vdw_r=2.5),
-	Cl: utils.Struct(index=I, index2=Cl_, element_name='Cl', element=17, mass=35.435, charge=-0.2, vdw_e=0.1, vdw_r=2.0),
+	Pb: utils.Struct(index=Pb, index2=Pb_, element_name='Pb', element=82, mass=207.2, charge=0.4, vdw_e=10.1, vdw_r=3.0),
+	I: utils.Struct(index=I, index2=I_, element_name='I', element=53, mass=126.9, charge=-0.2, vdw_e=10.1, vdw_r=2.5),
+	Cl: utils.Struct(index=I, index2=Cl_, element_name='Cl', element=17, mass=35.435, charge=-0.2, vdw_e=10.1, vdw_r=2.0),
 }
 
 system = utils.System(box_size=[1e3, 1e3, 1e3], name=run_name)
@@ -42,6 +42,8 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 			systems_by_composition[composition] = []
 		systems_by_composition[composition].append(with_bonds)
 
+xyz_atoms = []
+
 for composition in systems_by_composition: #within each type of system, lowest energy must be first and equal to 0.0
 	systems_by_composition[composition].sort(key=lambda s:s.energy)
 	baseline_energy = systems_by_composition[composition][0].energy
@@ -49,11 +51,13 @@ for composition in systems_by_composition: #within each type of system, lowest e
 		s.energy -= baseline_energy
 		s.energy *= 627.5 #Convert Hartree to kcal/mol
 		print utils.dist(*s.atoms[:2]), s.energy
+		xyz_atoms.append(s.atoms)
 		system.add(s, len(system.molecules)*1000.0)
 
-exit()
-
 system.box_size[0] = len(system.molecules)*1000.0*2+200.0
+
+files.write_xyz(xyz_atoms)
+#exit()
 
 os.chdir('lammps')
 files.write_lammps_data(system)
@@ -63,7 +67,7 @@ files.write_lammps_data(system)
 #	f.write(str(t)+' ')
 #f.close()
 
-shutil.copy('input.tersoff', system.name+'.tersoff')
+shutil.copy('input.tersoff', system.name+'_input.tersoff')
 shutil.copy('upper_bounds.tersoff', system.name+'_upper.tersoff')
 shutil.copy('lower_bounds.tersoff', system.name+'_lower.tersoff')
 
@@ -82,7 +86,6 @@ commands = ('''units real
 atom_style full
 pair_style hybrid/overlay lj/cut/coul/inout 0.0001 3.5 15 tersoff
 bond_style harmonic
-angle_style harmonic
 dihedral_style opls
 special_bonds lj/coul 0.0 0.0 0.5
 
@@ -100,7 +103,7 @@ for line in commands:
 	lmp.command(line)
 
 #run LAMMPS
-lmp.command('pair_coeff * * tersoff '+system.name+'.tersoff Pb Cl '+(' NULL'*(len(system.atom_types)-2)) )
+lmp.command('pair_coeff * * tersoff '+system.name+'_input.tersoff Pb Cl '+(' NULL'*(len(system.atom_types)-2)) )
 
 #for t in system.atom_types:
 #	if hasattr(t,'vdw_e'):
@@ -115,16 +118,14 @@ for t in system.dihedral_types:
 
 commands = '''
 compute atom_pe all pe/atom
-thermo 0
+compute sum_pe all reduce sum c_atom_pe
+thermo_style custom c_sum_pe
+#thermo 1
 neigh_modify once yes
 
-#pile of kludges to make compute pe/atom actually run: PE must be called each timestep by *something*
-compute sum_pe all reduce sum c_atom_pe
-fix average all ave/time 1 10000 10000 c_sum_pe file '''+system.name+'''.kludge
-#end pile of kludges
-
-fix params all parameterize '''+system.name+'''_forces.txt  '''+system.name+'''_energies.txt  '''+system.name+'''_upper.tersoff '''+system.name+'''_lower.tersoff '''+system.name+'''_best.tersoff '''+random_seed+'''
-run 100000000
+min_style params
+min_modify '''+run_name+''' '''+random_seed+'''
+minimize 0.01 0.01 10000 10000
 '''
 for line in commands.splitlines():
 	lmp.command(line)

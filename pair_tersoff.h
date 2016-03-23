@@ -26,6 +26,7 @@ namespace LAMMPS_NS {
 
 class PairTersoff : public Pair {
  friend class FixParameterize; //allows FixParameterize to modify protected parameters
+ friend class MinParams; //allows MinParams to modify protected parameters
  
  public:
   PairTersoff(class LAMMPS *);
