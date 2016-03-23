@@ -161,7 +161,8 @@ double FixParameterize::calculate_error()
   //compute_pe->compute_peratom();
   //compute_pe->invoked_flag |= 8;
   
-  compute_sum_pe->compute_scalar();
+  //if(compute_pe->vector_atom==NULL)
+    compute_sum_pe->compute_scalar(); // to make sure "compute_pe->vector_atom" is not NULL
   
   //printf("dPE=%g\n", compute_pe->vector_atom[2]-compute_pe->vector_atom[0]);
   double **f = atom->f;
@@ -417,3 +418,4 @@ void FixParameterize::unpack_params(std::vector<double> pp) {
     for(int j=1; j <= atom->ntypes; j++)
       lj->init_one(i, j);
 }
+

@@ -31,7 +31,7 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 	for directory in directories:
 		if not os.path.isfile(outer+'orca/'+directory+'/'+directory+'.orca.engrad'): continue
 		atoms, energy = orca.engrad_read(outer+'orca/'+directory+'/'+directory+'.orca.engrad')
-		if len(atoms)>2: continue
+		if len(atoms)!=2: continue
 		with_bonds = utils.Molecule(outer+'orca/'+directory+'/system.cml', extra_parameters=extra, check_charges=False)
 		for a,b in zip(atoms,with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
@@ -48,7 +48,10 @@ for composition in systems_by_composition: #within each type of system, lowest e
 	for s in systems_by_composition[composition]:
 		s.energy -= baseline_energy
 		s.energy *= 627.5 #Convert Hartree to kcal/mol
+		print utils.dist(*s.atoms[:2]), s.energy
 		system.add(s, len(system.molecules)*1000.0)
+
+exit()
 
 system.box_size[0] = len(system.molecules)*1000.0*2+200.0
 
@@ -77,7 +80,7 @@ f.close()
 
 commands = ('''units real
 atom_style full
-pair_style hybrid/overlay lj/cut/coul/inout 0.0001 3 15 tersoff
+pair_style hybrid/overlay lj/cut/coul/inout 0.0001 3.5 15 tersoff
 bond_style harmonic
 angle_style harmonic
 dihedral_style opls
@@ -115,10 +118,10 @@ compute atom_pe all pe/atom
 thermo 0
 neigh_modify once yes
 
-compute sum_pe all reduce sum c_atom_pe #pile of kludges to make compute pe/atom actually run
-fix average all ave/time 1 1000 1000 c_sum_pe #pile of kludges to make compute pe/atom actually run
-thermo_style custom f_average #pile of kludges to make compute pe/atom actually run
-#thermo 1000
+#pile of kludges to make compute pe/atom actually run: PE must be called each timestep by *something*
+compute sum_pe all reduce sum c_atom_pe
+fix average all ave/time 1 10000 10000 c_sum_pe file '''+system.name+'''.kludge
+#end pile of kludges
 
 fix params all parameterize '''+system.name+'''_forces.txt  '''+system.name+'''_energies.txt  '''+system.name+'''_upper.tersoff '''+system.name+'''_lower.tersoff '''+system.name+'''_best.tersoff '''+random_seed+'''
 run 100000000
