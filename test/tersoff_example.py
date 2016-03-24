@@ -92,7 +92,7 @@ special_bonds lj/coul 0.0 0.0 0.5
 boundary p p p
 read_data	'''+system.name+'''.data
 
-pair_coeff * * lj/cut/coul/inout 0.0 1.0 0
+pair_coeff * * lj/cut/coul/inout 0.0 1.0 3.5 #TODO: allow inout radius to vary in parameterization?
 ''').splitlines()
 lmp = utils.Struct()
 lmp.file = open(system.name+'.in', 'w')

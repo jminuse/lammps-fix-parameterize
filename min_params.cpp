@@ -217,7 +217,7 @@ int MinParams::iterate(int maxiter)
     int RANDOM = 0;
     int DDS = 1;
 
-    double DDS_step = 0.0; //default in DDS = 0.2
+    double DDS_step = 0.2; //default in DDS = 0.2
 
     int method = DDS;
     
@@ -242,10 +242,10 @@ int MinParams::iterate(int maxiter)
 
     //convergence criteria
     if(energy_error < update->etol) {
-       //return ETOL;
+       return ETOL;
     }
     if(force_error<update->ftol) {
-      //return FTOL;
+      return FTOL;
     }
 
     // output for thermo, dump, restart files
@@ -318,7 +318,6 @@ double MinParams::calculate_error()
     current_energies[ which_system ] += compute_pe->vector_atom[i];
   }
   //set baseline for each type of system, denoted by E=0.0 in energy input file
-  /*
   double baseline_energy = 0.0;
   for(unsigned int i=0; i<target_energies.size(); i++) {
     if(target_energies[i]==0.0)
@@ -332,9 +331,8 @@ double MinParams::calculate_error()
     double error = (target_energies[i]-current_energies[i])/(target_energies[i]+kT);
     energy_error += error*error;
   }
-  */
   //for testing
-  if(1) {
+  if(0) {
     for(unsigned int i=0; i<target_energies.size(); i++) {
       printf("E: %g %g\n", target_energies[i], current_energies[i]);
     }
@@ -503,11 +501,10 @@ void MinParams::unpack_params(std::vector<double> pp) {
       lj->init_one(i, j);
     }
   }
-  
-  for(int i=1; i <= atom->ntypes; i++) { //for testing only
+  /*for(int i=1; i <= atom->ntypes; i++) { //for testing only
     for(int j=i; j <= atom->ntypes; j++) {
       printf("Pair %d %d: e=%f s=%f\n", i, j, lj->epsilon[i][j], lj->sigma[i][j]);
     }
-  }
+  }*/
 }
 
