@@ -2,6 +2,7 @@ from merlin import *
 
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
 def test_functional_form():
 	eps = 1.0
@@ -70,5 +71,31 @@ def read_old_gaussian_pairs():
 						if a.element=='Cl': a.label='344'
 					files.write_cml(atoms, name='orca/'+name+'/system.cml')
 
-read_old_gaussian_pairs()
+def maintain_queue_size(queue, N):
+	while len(queue)>=N:
+		for job in queue:
+			if job.poll() != None: #job is done
+				queue.remove(job)
+		time.sleep(0.1)
+
+def pairwise_pbcl():
+	x = 2.0
+	running_jobs = []
+	while x<6.0:
+		maintain_queue_size(running_jobs, 4)
+		atoms = [utils.Atom('Pb', 0,0,0), utils.Atom('Cl', x,0,0)]
+		#name = 'PbCl+_x%.2f' % x
+		name = 'PbCl+_x%.2f_mp2' % x
+		print 'Running', name
+		#job = orca.job(name, '! B97-D3 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} Grid3 FinalGrid5', atoms, queue=None, grad=True, charge_and_multiplicity='1 1')
+		#job = orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv', atoms, queue=None, grad=True, charge_and_multiplicity='1 1')
+		#running_jobs.append(job)
+		#labels for cml file
+		for a in atoms:
+			if a.element=='Pb': a.label='907'
+			if a.element=='Cl': a.label='344'
+		files.write_cml(atoms, name='orca/'+name+'/system.cml')
+		x+=0.25
+
+pairwise_pbcl()
 

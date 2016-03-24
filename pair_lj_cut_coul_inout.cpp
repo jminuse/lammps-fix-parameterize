@@ -129,7 +129,7 @@ void PairLJCutCoulInOut::compute(int eflag, int vflag)
       jtype = type[j];
 
       if (rsq < cut_outer_sq) {
-        double N = 12.0; //used in smooth approximation of max(), below
+        //double N = 12.0; //used in smooth approximation of max(), below
         if(cut_inner[itype][jtype] != 0.0) {
           //rsq = pow( pow(rsq,N/2) + pow(cut_inner[itype][jtype],N), 2/N); //modify rsq to include inner cutoff. Smooth approximation to max(r^2,cut_inner[itype][jtype]^2)
           rsq = fmax(rsq, cut_inner[itype][jtype]*cut_inner[itype][jtype]);
@@ -441,6 +441,11 @@ double PairLJCutCoulInOut::single(int i, int j, int itype, int jtype, double rsq
   double r2inv,r6inv,r,erfcc,erfcd,prefactor;
   double forcecoul,forcelj,phicoul,philj;
 
+  if(cut_inner[itype][jtype] != 0.0) {
+    //rsq = pow( pow(rsq,N/2) + pow(cut_inner[itype][jtype],N), 2/N); //modify rsq to include inner cutoff. Smooth approximation to max(r^2,cut_inner[itype][jtype]^2)
+    rsq = fmax(rsq, cut_inner[itype][jtype]*cut_inner[itype][jtype]);
+  }
+  
   r2inv = 1.0/rsq;
   if (rsq < cut_outer_sq) {
     r6inv = r2inv*r2inv*r2inv;

@@ -127,9 +127,9 @@ void MinParams::init()
   lj = (PairLJCutCoulInOut*) force->pair_match("lj/cut/coul/inout",1,0);
   if(lj==NULL) error->all(FLERR,"Can't find lj/cut/coul/inout pair style in this run");
   
-  pack_params();
+  pack_params(); //read parameters from LAMMPS objects into flat arrays
   params_best = params_current;
-  unpack_params(params_current);
+  unpack_params(params_current); //put parameters into LAMMPS objects so as to calculate forces next step
   
   printf("Parameters to optimize: %d\n", params_current.size());
   
@@ -213,7 +213,7 @@ int MinParams::iterate(int maxiter)
     int RANDOM = 0;
     int DDS = 1;
 
-    double DDS_step = 0.01; //default in DDS = 0.2
+    double DDS_step = 0.0; //default in DDS = 0.2
 
     int method = DDS;
     
@@ -223,8 +223,8 @@ int MinParams::iterate(int maxiter)
         if( random->uniform() < fraction_done-1.0/params_current.size() ) continue; //skip this param (Dynamically Dimensioned Search)
         double dx = (params_upper[i] - params_lower[i]) * DDS_step * random->gaussian();
         params_current[i] = params_best[i] + dx;
-        if(params_current[i] > params_upper[i]) params_current[i] = 2*params_upper[i] - params_current[i]; //reflect across bound
-        if(params_current[i] < params_lower[i]) params_current[i] = 2*params_lower[i] - params_current[i]; //reflect across bound
+        //if(params_current[i] > params_upper[i]) params_current[i] = 2*params_upper[i] - params_current[i]; //reflect across bound
+        //if(params_current[i] < params_lower[i]) params_current[i] = 2*params_lower[i] - params_current[i]; //reflect across bound
       }
     }
     else if(method==RANDOM) { //Pick a random point within the bounds
@@ -238,10 +238,10 @@ int MinParams::iterate(int maxiter)
 
     //convergence criteria
     if(energy_error < update->etol) {
-       return ETOL;
+       //return ETOL;
     }
     if(force_error<update->ftol) {
-      return FTOL;
+      //return FTOL;
     }
 
     // output for thermo, dump, restart files
@@ -263,20 +263,26 @@ void MinParams::read_params_from_comments(std::string filename, std::vector<doub
   
   std::ifstream infile(filename.c_str());
   std::string line;
+  std::string charge_label = "# Charges:";
+  std::string lj_sigma_label = "# LJ-sigma:";
+  std::string lj_epsilon_label = "# LJ-epsilon:";
   while(std::getline(infile, line)) {
-    if(line.rfind("# Charges:", 0) == 0) {
+    if(line.rfind(charge_label, 0) == 0) {
       for(int type=0; type < atom->ntypes; type++) {
-          charges[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+10):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+        char *token = strtok( (type==0?((char*)line.c_str()+charge_label.size()):NULL), " ");
+        charges[type] = force->numeric(FLERR,token); //strtok needs first arg to be NULL on all calls after the first
       }
     }
-    if(line.rfind("# LJ-sigma:", 0) == 0) {
+    if(line.rfind(lj_sigma_label, 0) == 0) {
       for(int type=0; type < atom->ntypes; type++) {
-          lj_sigma[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+11):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+        char *token = strtok( (type==0?((char*)line.c_str()+lj_sigma_label.size()):NULL), " ");
+        lj_sigma[type] = force->numeric(FLERR,token); //strtok needs first arg to be NULL on all calls after the first
       }
     }
-    if(line.rfind("# LJ-epsilon:", 0) == 0) {
+    if(line.rfind(lj_epsilon_label, 0) == 0) {
       for(int type=0; type < atom->ntypes; type++) {
-          lj_epsilon[type] = force->numeric(FLERR,strtok( (type==0?((char*)line.c_str()+13):NULL), " ")); //strtok needs first arg to be NULL on all calls after the first
+        char *token = strtok( (type==0?((char*)line.c_str()+lj_epsilon_label.size()):NULL), " ");
+        lj_epsilon[type] = force->numeric(FLERR,token); //strtok needs first arg to be NULL on all calls after the first
       }
     }
   }
@@ -308,6 +314,7 @@ double MinParams::calculate_error()
     current_energies[ which_system ] += compute_pe->vector_atom[i];
   }
   //set baseline for each type of system, denoted by E=0.0 in energy input file
+  /*
   double baseline_energy = 0.0;
   for(unsigned int i=0; i<target_energies.size(); i++) {
     if(target_energies[i]==0.0)
@@ -321,19 +328,19 @@ double MinParams::calculate_error()
     double error = (target_energies[i]-current_energies[i])/(target_energies[i]+kT);
     energy_error += error*error;
   }
-  
+  */
   //for testing
-  if(0) {
+  if(1) {
     for(unsigned int i=0; i<target_energies.size(); i++) {
       printf("E: %g %g\n", target_energies[i], current_energies[i]);
     }
     puts("Done printing energies");
-    exit(0);
+    //exit(0);
   }
   
   force_error = sqrt(force_error/atom->natoms); //Normalize error
   energy_error = sqrt(energy_error/target_energies.size()); //Normalize error
-  return force_error + energy_error;
+  return 0.1*force_error + energy_error;
 }
 
 /*
@@ -419,12 +426,14 @@ void MinParams::pack_params() {
     pack_param(bigr);
     pack_param(cut);
   }
+  
   //pack other parameters into a flat array
   for(int type=0; type < atom->ntypes; type++) {
     pack_typewise_param(charges_upper, charges_lower, charges_current);
     pack_typewise_param(lj_sigma_upper, lj_sigma_lower, lj_sigma_current);
     pack_typewise_param(lj_epsilon_upper, lj_epsilon_lower, lj_epsilon_current);
   }
+  
 }
 
 #define unpack_param(X,I) if( tersoff_upper_bound->params[i].X > tersoff_lower_bound->params[i].X ) { tersoff->params[i].X = pp[I]; I++; }
@@ -471,14 +480,16 @@ void MinParams::unpack_params(std::vector<double> pp) {
   //modify charges
   for(int a=0; a < atom->natoms; a++) {
     for(int type=0; type < atom->ntypes; type++) {
-      if(atom->type[a+1] == type+1)
-        atom->q[a+1] = charges_current[type];
+      if(atom->type[a] == type+1) //atom->type[] is zero-indexed
+        atom->q[a] = charges_current[type]; //atom->q[] is zero-indexed
         //todo: make sure there are no resulting parameters based on charge that need to be recalculated after changing charge
     }
+	//printf("Atom %d: t=%d, q=%f\n", a, atom->type[a], atom->q[a]);
   }
+  
   //modify LJ parameters
   for(int type=0; type < atom->ntypes; type++) {
-    lj->sigma[type+1][type+1] = lj_sigma_current[type];
+    lj->sigma[type+1][type+1] = lj_sigma_current[type]; //lj->sigma and lj->epsilon are 1-indexed
     lj->epsilon[type+1][type+1] = lj_epsilon_current[type];
   }
   //recalculate resulting parameters
