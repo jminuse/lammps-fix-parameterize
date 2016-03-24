@@ -84,7 +84,7 @@ f.close()
 
 commands = ('''units real
 atom_style full
-pair_style hybrid/overlay lj/cut/coul/inout 0.0001 3.5 15 tersoff
+pair_style hybrid/overlay lj/cut/coul/inout 0.2 3.5 15 tersoff
 bond_style harmonic
 dihedral_style opls
 special_bonds lj/coul 0.0 0.0 0.5

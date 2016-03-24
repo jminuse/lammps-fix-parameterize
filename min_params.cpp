@@ -123,7 +123,11 @@ void MinParams::init()
   for(int i=0; i<tersoff->nparams; i++) {
     printf("tersoff elements = %d %d %d, A = %f\n", tersoff->params[i].ielement, tersoff->params[i].jelement, tersoff->params[i].kelement, tersoff->params[i].biga);
   }
-  //copy starting charges and LJ parameters by atom type  
+  for(int type=0; type < atom->ntypes; type++) { //for testing only
+	  printf("Pairwise: type %d, e=%f, s=%f, q=%f\n", type, lj_epsilon_current[type], lj_sigma_current[type], charges_current[type]);
+  }
+  
+  //get LAMMPS lj pair object
   lj = (PairLJCutCoulInOut*) force->pair_match("lj/cut/coul/inout",1,0);
   if(lj==NULL) error->all(FLERR,"Can't find lj/cut/coul/inout pair style in this run");
   
@@ -131,7 +135,7 @@ void MinParams::init()
   params_best = params_current;
   unpack_params(params_current); //put parameters into LAMMPS objects so as to calculate forces next step
   
-  printf("Parameters to optimize: %d\n", params_current.size());
+  printf("Parameters to optimize: %lu\n", params_current.size());
   
   //get ready to record results
   best_error = -1;
@@ -335,7 +339,7 @@ double MinParams::calculate_error()
       printf("E: %g %g\n", target_energies[i], current_energies[i]);
     }
     puts("Done printing energies");
-    //exit(0);
+    exit(0);
   }
   
   force_error = sqrt(force_error/atom->natoms); //Normalize error
@@ -493,9 +497,17 @@ void MinParams::unpack_params(std::vector<double> pp) {
     lj->epsilon[type+1][type+1] = lj_epsilon_current[type];
   }
   //recalculate resulting parameters
-  for(int i=1; i <= atom->ntypes; i++)
+  for(int i=1; i <= atom->ntypes; i++) {
     for(int j=i; j <= atom->ntypes; j++) {
+      lj->setflag[i][j] = 0; //unset
       lj->init_one(i, j);
     }
+  }
+  
+  for(int i=1; i <= atom->ntypes; i++) { //for testing only
+    for(int j=i; j <= atom->ntypes; j++) {
+      printf("Pair %d %d: e=%f s=%f\n", i, j, lj->epsilon[i][j], lj->sigma[i][j]);
+    }
+  }
 }
 
