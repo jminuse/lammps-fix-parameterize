@@ -213,10 +213,10 @@ int MinParams::iterate(int maxiter)
       std::copy ( params_current.begin(), params_current.end(), params_best.begin() );
       best_error = new_error;
       ready_to_write_file = 1;
-      //printf("New best: %f\n", best_error );
+      printf("New best: %f\n", best_error );
     }
     counter_since_last_file_write++;
-    if(ready_to_write_file && counter_since_last_file_write>100000)
+    if(ready_to_write_file && counter_since_last_file_write>1000)
         write_tersoff_file();
         
     //modify params_current to make a new guess for the next step
@@ -547,10 +547,10 @@ double MinParams::NLopt_target_function(unsigned params_count, const double *par
   if(new_error < best_error) {
     best_error = new_error;
     ready_to_write_file = 1;
-    printf("New best: %f\n", best_error );
+    //printf("New best: %f\n", best_error );
   }
   counter_since_last_file_write++;
-  if(ready_to_write_file && counter_since_last_file_write>1000) {
+  if(ready_to_write_file && counter_since_last_file_write>10000) {
     for(unsigned int i=0; i<params_best.size(); i++) 
       params_best[i] = params[i]; //copy into params_best
     write_tersoff_file();

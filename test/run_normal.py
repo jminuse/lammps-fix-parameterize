@@ -46,11 +46,11 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 for composition in systems_by_composition: #within each type of system, lowest energy must be first and equal to 0.0
 	systems_by_composition[composition].sort(key=lambda s:s.energy)
 	baseline_energy = systems_by_composition[composition][0].energy
-	s = systems_by_composition[composition][-1]
+	s = systems_by_composition[composition][0]
 	s.energy -= baseline_energy
 	s.energy *= 627.5 #Convert Hartree to kcal/mol
 	print utils.dist(*s.atoms[:2]), s.energy
-	system.add(s, len(system.molecules)*10)
+	system.add(s, len(system.molecules)*6)
 
 os.chdir('lammps')
 files.write_lammps_data(system)
@@ -84,9 +84,17 @@ special_bonds lj/coul 0.0 0.0 0.5
 
 boundary f f f
 read_data	'''+system.name+'''.data
-
-pair_coeff * * lj/cut/coul/inout 0.0 1.0 3.5 #TODO: allow inout radius to vary in parameterization?
 ''').splitlines()
+
+for line in open(system.name+'_input.tersoff'):
+	if line.startswith('# Charges:'): charges = line.split()[2:]
+	if line.startswith('# LJ-sigma:'): lj_sigma = line.split()[2:]
+	if line.startswith('# LJ-epsilon:'): lj_epsilon = line.split()[2:]
+
+for i in range(len(system.atom_types)):
+	commands.append('pair_coeff %d * lj/cut/coul/inout %f %f 3.5\n' % (i+1, float(lj_epsilon[i]), float(lj_sigma[i])) )
+	commands.append('set type %d charge %f\n' % (i+1, float(charges[i])) )
+	
 lmp = utils.Struct()
 lmp.file = open(system.name+'.in', 'w')
 def writeline(line):
@@ -110,12 +118,12 @@ for t in system.dihedral_types:
 	lmp.command('dihedral_coeff %d	%f %f %f %f' % ((t.lammps_type,)+t.e))
 
 commands = '''
-dump	1 all xyz 1000 '''+system.name+'''.xyz
-thermo 10000
+dump	1 all xyz 10 '''+system.name+'''.xyz
+thermo 100
 fix motion all nvt temp 300.0 300.0 100.0
 velocity all create 300.0 '''+random_seed+''' rot yes dist gaussian
 timestep 2.0
-run 100000
+run 1000
 '''
 for line in commands.splitlines():
 	lmp.command(line)
