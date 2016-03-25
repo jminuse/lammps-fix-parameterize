@@ -123,7 +123,7 @@ void MinParams::init()
     printf("tersoff elements = %d %d %d, A = %f\n", tersoff->params[i].ielement, tersoff->params[i].jelement, tersoff->params[i].kelement, tersoff->params[i].biga);
   }
   for(int type=0; type < atom->ntypes; type++) { //for testing only
-	  printf("Pairwise: type %d, e=%f, s=%f, q=%f\n", type, lj_epsilon_current[type], lj_sigma_current[type], charges_current[type]);
+    printf("Pairwise: type %d, e=%f, s=%f, q=%f\n", type, lj_epsilon_current[type], lj_sigma_current[type], charges_current[type]);
   }
   
   //get LAMMPS lj pair object
@@ -495,7 +495,7 @@ void MinParams::unpack_params(std::vector<double> pp) {
         atom->q[a] = charges_current[type]; //atom->q[] is zero-indexed
         //todo: make sure there are no resulting parameters based on charge that need to be recalculated after changing charge
     }
-	//printf("Atom %d: t=%d, q=%f\n", a, atom->type[a], atom->q[a]);
+  //printf("Atom %d: t=%d, q=%f\n", a, atom->type[a], atom->q[a]);
   }
   
   //modify LJ parameters
@@ -517,7 +517,45 @@ void MinParams::unpack_params(std::vector<double> pp) {
   }*/
 }
 
-double MinParams::NLopt_target_function(unsigned params_count, const double *params, double *gradient, void *optional_data) {
+double NLopt_target_function(unsigned params_count, const double *params, double *gradient, void *optional_data) {
   return 0.0;
+}
+
+void MinParams::run_NLopt() {
+  puts("Starting NLopt optimization...");
+  
+  nlopt_opt opt;
+  nlopt_opt local_opt = nlopt_create(NLOPT_LN_SBPLX, params_current.size());
+  if(optimization_method == 1) { //MLSL-LDS  (deterministic)
+    opt = nlopt_create(NLOPT_G_MLSL_LDS, params_current.size());
+    nlopt_set_local_optimizer(opt, local_opt);
+  } else if(optimization_method == 2) { //MLSL
+    opt = nlopt_create(NLOPT_G_MLSL, params_current.size());
+    nlopt_set_local_optimizer(opt, local_opt);
+  } else if(optimization_method == 3) { //DIRECT  (deterministic)
+    opt = nlopt_create(NLOPT_GN_DIRECT, params_current.size());
+  } else if(optimization_method == 4) { //DIRECT-L  (deterministic)
+    opt = nlopt_create(NLOPT_GN_DIRECT_L, params_current.size());
+  } else if(optimization_method == 5) { //CRS
+    opt = nlopt_create(NLOPT_GN_CRS2_LM, params_current.size());
+  } else if(optimization_method == 6) { //ISRES  (deterministic)
+    opt = nlopt_create(NLOPT_GN_ISRES, params_current.size());
+  } else if(optimization_method == 7) { //COBYLA
+    opt = nlopt_create(NLOPT_LN_COBYLA, params_current.size());
+  } else { // SBPLX (local)
+    opt = nlopt_create(NLOPT_LN_SBPLX, params_current.size());
+  }
+  
+  nlopt_set_lower_bounds(opt, &params_upper[0]);
+  nlopt_set_upper_bounds(opt, &params_lower[0]);
+  nlopt_set_maxeval(opt, update->max_eval);
+  nlopt_set_min_objective(opt, NLopt_target_function, NULL);
+  
+  double error; // the minimum objective value upon return
+  
+  int return_code = nlopt_optimize(opt, &params_current[0], &error);
+  if(return_code < 0) {
+    printf("NLopt failed with code %d\n", return_code);
+  }
 }
 
