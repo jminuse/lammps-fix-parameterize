@@ -60,11 +60,27 @@ void MinParams::modify_params(int narg, char **arg)
     error->all(FLERR,"Illegal min_modify command: min_style 'params' takes three arguments (run_name, optimization method (default=SBPLX), and random_seed)");
 
   run_name = std::string(arg[0]); //prefix for all output files
-  optimization_method = std::string(arg[1]); //name of algorithm
+  std::string optimization_method = std::string(arg[1]); //name of algorithm
   random_seed = force->inumeric(FLERR,arg[2]);
   
-  if(!(optimization_method == "MLSL-LDS" || optimization_method == "MLSL" || optimization_method == "DIRECT" || optimization_method == "DIRECT-L" || optimization_method == "CRS" || optimization_method == "ISRES" || optimization_method == "COBYLA"))
+  if(optimization_method == "DIRECT") { // deterministic
+    algorithm = NLOPT_GN_DIRECT;
+  } else if(optimization_method == "DIRECT-L") { // deterministic
+    algorithm = NLOPT_GN_DIRECT_L;
+  } else if(optimization_method == "CRS") { // Controlled Random Search
+    algorithm = NLOPT_GN_CRS2_LM;
+  } else if(optimization_method == "ISRES") { // Improved Stochastic Ranking Evolution Strategy. Mutation + local simplex optimization. 
+    algorithm = NLOPT_GN_ISRES;
+  } else if(optimization_method == "COBYLA") { // "Error -4: Halted because roundoff errors limited progress."
+    algorithm = NLOPT_LN_COBYLA;
+  } else if(optimization_method == "ESCH") { // evolutionary algorithm. Certainly slow, possibly steady. 
+    algorithm = NLOPT_GN_ESCH;
+  } else if(optimization_method == "BOBYQA") { // "Error -4: Halted because roundoff errors limited progress."
+    algorithm = NLOPT_LN_BOBYQA;  
+  } else { // SBPLX (local)
     optimization_method = "SBPLX";
+    algorithm = NLOPT_LN_SBPLX;
+  }
   
   printf("Run name = %s\n", run_name.c_str());
   printf("Optimization method = %s\n", optimization_method.c_str());
@@ -501,31 +517,10 @@ double NLopt_target_function_wrapper(unsigned params_count, const double *params
 }
 
 void MinParams::run_NLopt() {
-  printf("Running NLopt optimization with method %s...\n", optimization_method.c_str());
+  puts("Running NLopt optimization...");
   
-  nlopt_opt opt;
-  nlopt_opt local_opt = nlopt_create(NLOPT_LN_SBPLX, params_current.size());
-  double local_tolerance = 1e-5;
-  nlopt_set_ftol_abs(local_opt, local_tolerance);
-  if(optimization_method == "MLSL-LDS") { // (deterministic)
-    opt = nlopt_create(NLOPT_G_MLSL_LDS, params_current.size());
-    nlopt_set_local_optimizer(opt, local_opt);
-  } else if(optimization_method == "MLSL") { // not very effective?
-    opt = nlopt_create(NLOPT_G_MLSL, params_current.size());
-    nlopt_set_local_optimizer(opt, local_opt);
-  } else if(optimization_method == "DIRECT") { // (deterministic)
-    opt = nlopt_create(NLOPT_GN_DIRECT, params_current.size());
-  } else if(optimization_method == "DIRECT-L") { // (deterministic)
-    opt = nlopt_create(NLOPT_GN_DIRECT_L, params_current.size());
-  } else if(optimization_method == "CRS") { //
-    opt = nlopt_create(NLOPT_GN_CRS2_LM, params_current.size());
-  } else if(optimization_method == "ISRES") { // (deterministic)
-    opt = nlopt_create(NLOPT_GN_ISRES, params_current.size());
-  } else if(optimization_method == "COBYLA") { // quits with loss-of-precision errors?
-    opt = nlopt_create(NLOPT_LN_COBYLA, params_current.size());
-  } else { // SBPLX (local)
-    opt = local_opt;
-  }
+  nlopt_opt opt = nlopt_create(algorithm, params_current.size());
+  nlopt_srand(random_seed);
   
   //enforce requirement of NLopt, that guess must be within the bounds
   for(unsigned int i=0; i<params_current.size(); i++) {

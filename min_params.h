@@ -31,6 +31,8 @@ MinimizeStyle(params,MinParams)
 #include <vector>
 #include <string>
 
+#include <nlopt.h> //NLopt Non-Linear Optimization library. Compilation flags: gcc -I/fs/home/jms875/install/include -L/fs/home/jms875/install/lib -lnlopt -lm
+
 namespace LAMMPS_NS {
 
 class MinParams : public Min {
@@ -42,11 +44,12 @@ class MinParams : public Min {
   void reset_vectors();
   int iterate(int);
   void modify_params(int, char **); //to set run_name, etc
+  double NLopt_target_function(unsigned params_count, const double *params);
 
- //protected:
+ protected:
   int random_seed;
   RanMars *random;
-  std::string optimization_method;
+  nlopt_algorithm algorithm;
   double best_error;
   double force_error, energy_error;
   std::vector<double> target_forces;
@@ -90,7 +93,6 @@ class MinParams : public Min {
   void pack_params();
   void unpack_params(std::vector<double> pp);
   void read_params_from_comments(std::string filename, std::vector<double> &charges, std::vector<double> &lj_sigma, std::vector<double> &lj_epsilon);
-  double NLopt_target_function(unsigned params_count, const double *params);
   void run_NLopt();
 };
 

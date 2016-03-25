@@ -16,73 +16,32 @@ Cl = 344
 
 extra = {
 	(H_, I_): (100.0, 2.1), 
-	(N_, H_, I_): (10.0, 180.0), 
+	(N_, H_, I_): (10.0, 180.0),
 	Pb: utils.Struct(index=Pb, index2=Pb_, element_name='Pb', element=82, mass=207.2, charge=0.4, vdw_e=10.1, vdw_r=3.0),
 	I: utils.Struct(index=I, index2=I_, element_name='I', element=53, mass=126.9, charge=-0.2, vdw_e=10.1, vdw_r=2.5),
 	Cl: utils.Struct(index=I, index2=Cl_, element_name='Cl', element=17, mass=35.435, charge=-0.2, vdw_e=10.1, vdw_r=2.0),
 }
 
-system = utils.System(box_size=[50, 50, 50], name=run_name)
-
-systems_by_composition = {}
-
-for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
-	directories = next(os.walk(outer+'orca'))[1]
-	for directory in directories:
-		name = directory
-		if not os.path.isfile(outer+'orca/'+name+'/'+name+'.orca.engrad'): continue
-		atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad')
-		if 'mp2' not in name or 'qz' in name: continue
-		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)
-		for a,b in zip(atoms,with_bonds.atoms):
-			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
-			b.fx, b.fy, b.fz = a.fx*convert, a.fy*convert, a.fz*convert
-		with_bonds.energy = energy
-		composition = ' '.join(sorted([a.element for a in atoms]))
-		if composition not in systems_by_composition:
-			systems_by_composition[composition] = []
-		systems_by_composition[composition].append(with_bonds)
-
-for composition in systems_by_composition: #within each type of system, lowest energy must be first and equal to 0.0
-	systems_by_composition[composition].sort(key=lambda s:s.energy)
-	baseline_energy = systems_by_composition[composition][0].energy
-	s = systems_by_composition[composition][0]
-	s.energy -= baseline_energy
-	s.energy *= 627.5 #Convert Hartree to kcal/mol
-	print utils.dist(*s.atoms[:2]), s.energy
-	system.add(s, len(system.molecules)*6)
+system = utils.System(box_size=[30, 30, 30], name=run_name)
+DMSO = utils.Molecule('molecules/dmso')
+PbCl2 = utils.Molecule('molecules/PbCl2', extra_parameters=extra, check_charges=False)
+files.packmol(system, (DMSO,PbCl2), (20,1), 0.4, random_seed)
+#files.write_xyz(system.atoms)
 
 os.chdir('lammps')
 files.write_lammps_data(system)
 
-#f = open('test_log.txt','w')
-#for t in system.atom_types:
-#	f.write(str(t)+' ')
-#f.close()
-
 shutil.copy('input.tersoff', system.name+'_input.tersoff')
-shutil.copy('upper_bounds.tersoff', system.name+'_upper.tersoff')
-shutil.copy('lower_bounds.tersoff', system.name+'_lower.tersoff')
-
-# write forces to a file
-f = open(system.name+'_forces.txt', 'w')
-for a in system.atoms:
-	f.write("%e\n%e\n%e\n" % (a.fx, a.fy, a.fz) )
-f.close()
-# write energies to a file
-f = open(system.name+'_energies.txt', 'w')
-for m in system.molecules:
-	f.write("%e\n" % (m.energy) )
-f.close()
 
 commands = ('''units real
 atom_style full
-pair_style hybrid/overlay lj/cut/coul/inout 0.2 3.5 15 tersoff
+pair_style hybrid/overlay lj/cut/coul/inout 0.2 3.5 12 tersoff
 bond_style harmonic
+angle_style harmonic
 dihedral_style opls
 special_bonds lj/coul 0.0 0.0 0.5
 
-boundary f f f
+boundary p p p
 read_data	'''+system.name+'''.data
 ''').splitlines()
 
@@ -92,9 +51,13 @@ for line in open(system.name+'_input.tersoff'):
 	if line.startswith('# LJ-epsilon:'): lj_epsilon = line.split()[2:]
 
 for i in range(len(system.atom_types)):
-	commands.append('pair_coeff %d * lj/cut/coul/inout %f %f 3.5\n' % (i+1, float(lj_epsilon[i]), float(lj_sigma[i])) )
-	commands.append('set type %d charge %f\n' % (i+1, float(charges[i])) )
-	
+	for j in range(i, len(system.atom_types)):
+		if i>=len(charges) or j>=len(charges):
+			commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5) )
+		else:
+			commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 3.5' % (i+1, j+1, (float(lj_epsilon[i])*float(lj_epsilon[j]))**0.5, (float(lj_sigma[i])*float(lj_sigma[j]))**0.5) )
+			commands.append('set type %d charge %f' % (i+1, float(charges[i])) )
+
 lmp = utils.Struct()
 lmp.file = open(system.name+'.in', 'w')
 def writeline(line):
@@ -118,12 +81,13 @@ for t in system.dihedral_types:
 	lmp.command('dihedral_coeff %d	%f %f %f %f' % ((t.lammps_type,)+t.e))
 
 commands = '''
-dump	1 all xyz 10 '''+system.name+'''.xyz
-thermo 100
-fix motion all nvt temp 300.0 300.0 100.0
+dump	1 all xyz 100 '''+system.name+'''.xyz
+thermo_style custom step temp epair emol vol
+thermo 1000
+fix motion all npt temp 300.0 300.0 100.0 iso 1.0 1.0 1000.0
 velocity all create 300.0 '''+random_seed+''' rot yes dist gaussian
-timestep 2.0
-run 1000
+timestep 1.0
+run 10000
 '''
 for line in commands.splitlines():
 	lmp.command(line)

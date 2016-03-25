@@ -1,8 +1,10 @@
 from merlin import *
 import shutil
+import hashlib
 
 run_name = sys.argv[1] if len(sys.argv)>1 else 'test'
-random_seed = sys.argv[2] if len(sys.argv)>2 else '1'
+optimization_method = sys.argv[2] if len(sys.argv)>2 else 'SBPLX'
+random_seed = int(hashlib.md5(run_name).hexdigest(), 16)%(2**16)
 
 I_ = 66
 Cl_ = 21
@@ -87,6 +89,7 @@ commands = ('''units real
 atom_style full
 pair_style hybrid/overlay lj/cut/coul/inout 0.2 3.5 15 tersoff
 bond_style harmonic
+angle_style harmonic
 dihedral_style opls
 special_bonds lj/coul 0.0 0.0 0.5
 
@@ -117,7 +120,6 @@ for t in system.angle_types:
 for t in system.dihedral_types:
 	lmp.command('dihedral_coeff %d	%f %f %f %f' % ((t.lammps_type,)+t.e))
 
-optimization_method = 'CRS'
 commands = '''
 compute atom_pe all pe/atom
 compute sum_pe all reduce sum c_atom_pe
@@ -126,7 +128,7 @@ thermo_style custom c_sum_pe
 neigh_modify once yes
 
 min_style params
-min_modify '''+run_name+''' '''+optimization_method+''' '''+random_seed+'''
+min_modify '''+run_name+''' '''+optimization_method+''' '''+str(random_seed)+'''
 minimize 0.01 0.01 1728000000 1728000000 #with 224 atoms, does 2e4 steps/second. One day = 1728000000, 40% of 2^32. 
 '''
 for line in commands.splitlines():
