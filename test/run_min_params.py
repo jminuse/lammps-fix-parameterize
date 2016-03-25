@@ -117,7 +117,7 @@ for t in system.angle_types:
 for t in system.dihedral_types:
 	lmp.command('dihedral_coeff %d	%f %f %f %f' % ((t.lammps_type,)+t.e))
 
-optimization_method = '1'
+optimization_method = '0'
 commands = '''
 compute atom_pe all pe/atom
 compute sum_pe all reduce sum c_atom_pe

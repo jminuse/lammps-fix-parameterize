@@ -43,7 +43,7 @@ class MinParams : public Min {
   int iterate(int);
   void modify_params(int, char **); //to set run_name, etc
 
- protected:
+ //protected:
   int random_seed;
   RanMars *random;
   int optimization_method;
@@ -90,7 +90,7 @@ class MinParams : public Min {
   void pack_params();
   void unpack_params(std::vector<double> pp);
   void read_params_from_comments(std::string filename, std::vector<double> &charges, std::vector<double> &lj_sigma, std::vector<double> &lj_epsilon);
-  //double NLopt_target_function(unsigned params_count, const double *params, double *gradient, void *optional_data);
+  double NLopt_target_function(unsigned params_count, const double *params);
   void run_NLopt();
 };
 

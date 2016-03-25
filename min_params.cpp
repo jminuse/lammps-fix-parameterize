@@ -171,8 +171,12 @@ void MinParams::reset_vectors()
 
 int MinParams::iterate(int maxiter)
 {
-  bigint ntimestep;
+  run_NLopt();
+  return MAXEVAL;
 
+  //code below here is not used
+
+  bigint ntimestep;
   for (int iter = 0; iter<maxiter; iter++) {
 
     ntimestep = ++update->ntimestep;
@@ -209,10 +213,10 @@ int MinParams::iterate(int maxiter)
       std::copy ( params_current.begin(), params_current.end(), params_best.begin() );
       best_error = new_error;
       ready_to_write_file = 1;
-      printf("New best: %f\n", best_error );
+      //printf("New best: %f\n", best_error );
     }
     counter_since_last_file_write++;
-    if(ready_to_write_file && counter_since_last_file_write>1000)
+    if(ready_to_write_file && counter_since_last_file_write>100000)
         write_tersoff_file();
         
     //modify params_current to make a new guess for the next step
@@ -340,8 +344,8 @@ double MinParams::calculate_error()
     double error = (target_energies[i]-current_energies[i])/(target_energies[i]+kT);
     energy_error += error*error;
   }
-  //for testing
-  if(0) {
+  
+  if(0) { //for testing: set to 1 to print energy comparison, then exit
     for(unsigned int i=0; i<target_energies.size(); i++) {
       printf("E: %g %g\n", target_energies[i], current_energies[i]);
     }
@@ -517,12 +521,58 @@ void MinParams::unpack_params(std::vector<double> pp) {
   }*/
 }
 
-double NLopt_target_function(unsigned params_count, const double *params, double *gradient, void *optional_data) {
-  return 0.0;
+double MinParams::NLopt_target_function(unsigned params_count, const double *params) {
+  bigint ntimestep;
+  ntimestep = ++update->ntimestep;
+  niter++;
+  
+  unpack_params(params_current); //put parameters into LAMMPS objects
+
+  ecurrent = energy_force(0);
+  neval++;
+
+
+  update->eflag_atom = update->ntimestep; //needed to avoid error message. TODO: make this less of a hack. 
+  compute_pe->compute_peratom(); //also sort of a hack
+
+
+  if(best_error<0) {
+    best_error = calculate_error();
+    for(unsigned int i=0; i<params_best.size(); i++) 
+      params_best[i] = params[i]; //copy into params_best
+    write_tersoff_file();
+  }
+  double new_error = calculate_error();
+  
+  if(new_error < best_error) {
+    best_error = new_error;
+    ready_to_write_file = 1;
+    printf("New best: %f\n", best_error );
+  }
+  counter_since_last_file_write++;
+  if(ready_to_write_file && counter_since_last_file_write>1000) {
+    for(unsigned int i=0; i<params_best.size(); i++) 
+      params_best[i] = params[i]; //copy into params_best
+    write_tersoff_file();
+  }
+
+  // output for thermo, dump, restart files
+  if(output->next == ntimestep) {
+    timer->stamp();
+    output->write(ntimestep);
+    timer->stamp(Timer::OUTPUT);
+  }
+  
+  return new_error;
+}
+
+double NLopt_target_function_wrapper(unsigned params_count, const double *params, double *gradient, void *optional_data) {
+  MinParams *me = (MinParams *) optional_data;
+  return me->NLopt_target_function(params_count, params);
 }
 
 void MinParams::run_NLopt() {
-  puts("Starting NLopt optimization...");
+  puts("Running NLopt optimization...");
   
   nlopt_opt opt;
   nlopt_opt local_opt = nlopt_create(NLOPT_LN_SBPLX, params_current.size());
@@ -543,13 +593,19 @@ void MinParams::run_NLopt() {
   } else if(optimization_method == 7) { //COBYLA
     opt = nlopt_create(NLOPT_LN_COBYLA, params_current.size());
   } else { // SBPLX (local)
-    opt = nlopt_create(NLOPT_LN_SBPLX, params_current.size());
+    opt = local_opt;
   }
   
-  nlopt_set_lower_bounds(opt, &params_upper[0]);
-  nlopt_set_upper_bounds(opt, &params_lower[0]);
+  //enforce requirement of NLopt, that guess must be within the bounds
+  for(unsigned int i=0; i<params_current.size(); i++) {
+    assert(params_upper[i]>=params_current[i]);
+    assert(params_current[i]>=params_lower[i]);
+  }
+  
+  nlopt_set_lower_bounds(opt, &params_lower[0]);
+  nlopt_set_upper_bounds(opt, &params_upper[0]);
   nlopt_set_maxeval(opt, update->max_eval);
-  nlopt_set_min_objective(opt, NLopt_target_function, NULL);
+  nlopt_set_min_objective(opt, NLopt_target_function_wrapper, this);
   
   double error; // the minimum objective value upon return
   
