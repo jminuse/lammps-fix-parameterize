@@ -23,18 +23,10 @@
 #include "timer.h"
 #include "error.h"
 
-
 #include "random_mars.h" //random number generator, Marsaglia style
 #include "pair_tersoff.h"
 #include "pair_lj_cut_coul_inout.h"
 #include "compute.h" //for compute pe/atom
-#include "finish.h" //for Finish class in MinParams::command
-#include "thermo.h" //for PE calculation
-#include "kspace.h" //for PE calculation
-#include "bond.h" //for PE calculation
-#include "angle.h" //for PE calculation
-#include "dihedral.h" //for PE calculation
-#include "improper.h" //for PE calculation
 
 #include <vector> //for std:vector
 #include <algorithm> //for std:copy and std::fill
@@ -43,6 +35,8 @@
 #include <string.h> //for strtok
 
 #include <assert.h>
+
+#include <nlopt.h> //NLopt Non-Linear Optimization library. Compilation flags: gcc -I/fs/home/jms875/install/include -L/fs/home/jms875/install/lib -lnlopt -lm
 
 using namespace LAMMPS_NS;
 
@@ -521,5 +515,9 @@ void MinParams::unpack_params(std::vector<double> pp) {
       printf("Pair %d %d: e=%f s=%f\n", i, j, lj->epsilon[i][j], lj->sigma[i][j]);
     }
   }*/
+}
+
+double MinParams::NLopt_target_function(unsigned params_count, const double *params, double *gradient, void *optional_data) {
+  return 0.0;
 }
 
