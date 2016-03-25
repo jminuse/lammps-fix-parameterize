@@ -6,7 +6,7 @@
 # i, j, k,       m,        gamma,    lambda3,  c,        d,        costheta0,
 #                n,        beta,     lambda2,  B,        R,        D,        lambda1,  A
 Pb Pb Pb         1         1         1         1         1         1
-                 1         0         0         0         0         0         0         0
+                 1         0         0         0         0         0       4.0     1000000
 
 Pb Pb Cl         1         1         1         1         1         1
                  1         0         0         0         0         0         0         0

@@ -137,6 +137,20 @@ def steps_pbcl2():
 		x+=0.5
 	files.write_xyz(images)
 
-steps_pbcl2()
+def analyze_md_states_Pb2Cl3():
+	states = files.read_xyz('md_states')[:50]
+	running_jobs = []
+	for i,atoms in enumerate(states):
+		maintain_queue_size(running_jobs, 4)
+		name = 'Pb2Cl3+_MD_%d_mp2' % i
+		print 'Running', name
+		job = orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv', atoms, queue=None, grad=True, charge_and_multiplicity='1 1', previous=('Pb2Cl3+_MD_0_mp2' if i>4 else None))
+		running_jobs.append(job)
+		for a in atoms: #labels for cml file
+			if a.element=='Pb': a.label='907'
+			if a.element=='Cl': a.label='344'
+		files.write_cml(atoms, name='orca/'+name+'/system.cml')
+
+analyze_md_states_Pb2Cl3()
 
 

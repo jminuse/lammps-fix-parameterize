@@ -576,10 +576,12 @@ void MinParams::run_NLopt() {
   
   nlopt_opt opt;
   nlopt_opt local_opt = nlopt_create(NLOPT_LN_SBPLX, params_current.size());
+  double local_tolerance = 1e-5;
+  nlopt_set_ftol_abs(local_opt, local_tolerance);
   if(optimization_method == 1) { //MLSL-LDS  (deterministic)
     opt = nlopt_create(NLOPT_G_MLSL_LDS, params_current.size());
     nlopt_set_local_optimizer(opt, local_opt);
-  } else if(optimization_method == 2) { //MLSL
+  } else if(optimization_method == 2) { //MLSL: not very effective?
     opt = nlopt_create(NLOPT_G_MLSL, params_current.size());
     nlopt_set_local_optimizer(opt, local_opt);
   } else if(optimization_method == 3) { //DIRECT  (deterministic)
@@ -590,7 +592,7 @@ void MinParams::run_NLopt() {
     opt = nlopt_create(NLOPT_GN_CRS2_LM, params_current.size());
   } else if(optimization_method == 6) { //ISRES  (deterministic)
     opt = nlopt_create(NLOPT_GN_ISRES, params_current.size());
-  } else if(optimization_method == 7) { //COBYLA
+  } else if(optimization_method == 7) { //COBYLA: causes loss-of-precision errors?
     opt = nlopt_create(NLOPT_LN_COBYLA, params_current.size());
   } else { // SBPLX (local)
     opt = local_opt;
@@ -601,10 +603,11 @@ void MinParams::run_NLopt() {
     assert(params_upper[i]>=params_current[i]);
     assert(params_current[i]>=params_lower[i]);
   }
-  
+  double tolerance = 1e-8;
   nlopt_set_lower_bounds(opt, &params_lower[0]);
   nlopt_set_upper_bounds(opt, &params_upper[0]);
   nlopt_set_maxeval(opt, update->max_eval);
+  nlopt_set_ftol_abs(opt, tolerance);
   nlopt_set_min_objective(opt, NLopt_target_function_wrapper, this);
   
   double error; // the minimum objective value upon return

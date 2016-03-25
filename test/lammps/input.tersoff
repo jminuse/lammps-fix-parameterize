@@ -2,7 +2,7 @@
 # Error metric=0.057969, Energy error=5.80%, Force error=4495.46%
 # Charges:             2         -1 
 # LJ-sigma:       3.8735    2.60782 
-# LJ-epsilon:       0.01     16.129 
+# LJ-epsilon:       10.0     10.0 
 # i, j, k,       m,        gamma,    lambda3,  c,        d,        costheta0,
 #                n,        beta,     lambda2,  B,        R,        D,        lambda1,  A
 Pb Pb Pb         3         1         1         1         1         1
