@@ -22,17 +22,18 @@ extra = {
 	Cl: utils.Struct(index=I, index2=Cl_, element_name='Cl', element=17, mass=35.435, charge=-0.2, vdw_e=10.1, vdw_r=2.0),
 }
 
-system = utils.System(box_size=[1e3, 1e3, 1e3], name=run_name)
+system = utils.System(box_size=[1e3, 50, 50], name=run_name)
 
 systems_by_composition = {}
 
 for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 	directories = next(os.walk(outer+'orca'))[1]
 	for directory in directories:
-		if not os.path.isfile(outer+'orca/'+directory+'/'+directory+'.orca.engrad'): continue
-		atoms, energy = orca.engrad_read(outer+'orca/'+directory+'/'+directory+'.orca.engrad')
-		if len(atoms)!=2 or 'mp2' not in directory: continue
-		with_bonds = utils.Molecule(outer+'orca/'+directory+'/system.cml', extra_parameters=extra, check_charges=False)
+		name = directory
+		if not os.path.isfile(outer+'orca/'+name+'/'+name+'.orca.engrad'): continue
+		atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad')
+		if 'mp2' not in name or 'qz' in name: continue
+		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)
 		for a,b in zip(atoms,with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
 			b.fx, b.fy, b.fz = a.fx*convert, a.fy*convert, a.fz*convert
@@ -56,7 +57,7 @@ for composition in systems_by_composition: #within each type of system, lowest e
 
 system.box_size[0] = len(system.molecules)*1000.0*2+200.0
 
-files.write_xyz(xyz_atoms)
+files.write_xyz(xyz_atoms, 'states')
 #exit()
 
 os.chdir('lammps')
@@ -89,7 +90,7 @@ bond_style harmonic
 dihedral_style opls
 special_bonds lj/coul 0.0 0.0 0.5
 
-boundary p p p
+boundary f f f
 read_data	'''+system.name+'''.data
 
 pair_coeff * * lj/cut/coul/inout 0.0 1.0 3.5 #TODO: allow inout radius to vary in parameterization?
@@ -116,6 +117,7 @@ for t in system.angle_types:
 for t in system.dihedral_types:
 	lmp.command('dihedral_coeff %d	%f %f %f %f' % ((t.lammps_type,)+t.e))
 
+optimization_method = '0'
 commands = '''
 compute atom_pe all pe/atom
 compute sum_pe all reduce sum c_atom_pe
@@ -124,8 +126,8 @@ thermo_style custom c_sum_pe
 neigh_modify once yes
 
 min_style params
-min_modify '''+run_name+''' '''+random_seed+'''
-minimize 0.01 0.01 10000000 10000000
+min_modify '''+run_name+''' '''+optimization_method+''' '''+random_seed+'''
+minimize 0.01 0.01 1728000000 1728000000 #with 224 atoms, does 2e4 steps/second. One day = 1728000000, 40% of 2^32. 
 '''
 for line in commands.splitlines():
 	lmp.command(line)

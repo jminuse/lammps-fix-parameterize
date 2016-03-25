@@ -7,12 +7,12 @@ SHELL = /bin/sh
 # specify flags and libraries needed for your compiler
 
 CC =		/usr/local/gcc/4.9.2/bin/g++    #or just g++, but that means no -Ofast. 
-CCFLAGS =	-g -O0 -m64 -static-libgcc -static-libstdc++ -Wall -Wextra -gdwarf-3 #need -static because system default glibcxx is too old. -gdwarf-3 for debug info readable by our old version of gdb. 
+CCFLAGS =	-g -Ofast -m64 -static-libgcc -static-libstdc++ -Wall -Wextra -gdwarf-3 #need -static because system default glibcxx is too old. -gdwarf-3 for debug info readable by our old version of gdb. 
 SHFLAGS =	-fPIC
 DEPFLAGS =	-M
 
 LINK =		/usr/local/gcc/4.9.2/bin/g++ #or just g++
-LINKFLAGS = -g -O0 -m64 -static-libgcc -static-libstdc++ -gdwarf-3
+LINKFLAGS = -g -Ofast -m64 -static-libgcc -static-libstdc++ -gdwarf-3
 LIB = 
 SIZE =		size
 

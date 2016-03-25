@@ -97,5 +97,46 @@ def pairwise_pbcl():
 		files.write_cml(atoms, name='orca/'+name+'/system.cml')
 		x+=0.25
 
-pairwise_pbcl()
+def pairwise_pbcl_qz(): #compare energies for name and old_name below: QZ is apparently not neccessary
+	x = 2.0
+	running_jobs = []
+	while x<6.0:
+		maintain_queue_size(running_jobs, 4)
+		atoms = [utils.Atom('Pb', 0,0,0), utils.Atom('Cl', x,0,0)]
+		name = 'PbCl+_x%.2f_mp2_qz' % x
+		old_name = 'PbCl+_x%.2f_mp2' % x
+		print 'Running', name
+		job = orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ Def2-QZVPP(-g,-f) ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv', atoms, queue=None, grad=True, charge_and_multiplicity='1 1', previous=old_name)
+		running_jobs.append(job)
+		#labels for cml file
+		for a in atoms:
+			if a.element=='Pb': a.label='907'
+			if a.element=='Cl': a.label='344'
+		files.write_cml(atoms, name='orca/'+name+'/system.cml')
+		x+=0.25
+
+def steps_pbcl2():
+	running_jobs = []
+	x = 0.0
+	images = []
+	while x<4.0:
+		y = 2.0
+		while y<6.0:
+			maintain_queue_size(running_jobs, 4)
+			atoms = [utils.Atom('Pb', 0,0,0), utils.Atom('Cl', 2.5,0,0), utils.Atom('Cl', -x,y,0)]
+			name = 'PbCl2_x%.2f_y%.2f_mp2' % (x,y)
+			print 'Running', name
+			job = orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv', atoms, queue=None, grad=True)
+			running_jobs.append(job)
+			images.append(atoms)
+			for a in atoms: #labels for cml file
+				if a.element=='Pb': a.label='907'
+				if a.element=='Cl': a.label='344'
+			files.write_cml(atoms, name='orca/'+name+'/system.cml')
+			y+=0.5
+		x+=0.5
+	files.write_xyz(images)
+
+steps_pbcl2()
+
 

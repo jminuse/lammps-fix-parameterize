@@ -46,6 +46,7 @@ class MinParams : public Min {
  protected:
   int random_seed;
   RanMars *random;
+  int optimization_method;
   double best_error;
   double force_error, energy_error;
   std::vector<double> target_forces;
