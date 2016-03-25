@@ -32,7 +32,7 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 		name = directory
 		if not os.path.isfile(outer+'orca/'+name+'/'+name+'.orca.engrad'): continue
 		atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad')
-		if 'mp2' not in name or 'qz' in name or 'Pb2Cl3' in name: continue
+		if 'mp2' not in name or 'qz' in name: continue # or 'Pb2Cl3' in name
 		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)
 		for a,b in zip(atoms,with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
@@ -117,7 +117,7 @@ for t in system.angle_types:
 for t in system.dihedral_types:
 	lmp.command('dihedral_coeff %d	%f %f %f %f' % ((t.lammps_type,)+t.e))
 
-optimization_method = '0'
+optimization_method = 'CRS'
 commands = '''
 compute atom_pe all pe/atom
 compute sum_pe all reduce sum c_atom_pe

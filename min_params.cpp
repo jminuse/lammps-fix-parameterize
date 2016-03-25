@@ -57,14 +57,17 @@ MinParams::MinParams(LAMMPS *lmp) : Min(lmp) {}
 void MinParams::modify_params(int narg, char **arg)
 {
   if (narg != 3)
-    error->all(FLERR,"Illegal min_modify command: min_style 'params' takes three arguments (run_name, optimization method (0-2), and random_seed)");
+    error->all(FLERR,"Illegal min_modify command: min_style 'params' takes three arguments (run_name, optimization method (default=SBPLX), and random_seed)");
 
   run_name = std::string(arg[0]); //prefix for all output files
-  optimization_method = force->inumeric(FLERR,arg[1]); //int 0-2, eg RANDOM=1
+  optimization_method = std::string(arg[1]); //name of algorithm
   random_seed = force->inumeric(FLERR,arg[2]);
   
+  if(!(optimization_method == "MLSL-LDS" || optimization_method == "MLSL" || optimization_method == "DIRECT" || optimization_method == "DIRECT-L" || optimization_method == "CRS" || optimization_method == "ISRES" || optimization_method == "COBYLA"))
+    optimization_method = "SBPLX";
+  
   printf("Run name = %s\n", run_name.c_str());
-  printf("Optimization method = %d\n", optimization_method);
+  printf("Optimization method = %s\n", optimization_method.c_str());
   printf("Random seed = %d\n", random_seed);
 }
 
@@ -498,27 +501,27 @@ double NLopt_target_function_wrapper(unsigned params_count, const double *params
 }
 
 void MinParams::run_NLopt() {
-  puts("Running NLopt optimization...");
+  printf("Running NLopt optimization with method %s...\n", optimization_method.c_str());
   
   nlopt_opt opt;
   nlopt_opt local_opt = nlopt_create(NLOPT_LN_SBPLX, params_current.size());
   double local_tolerance = 1e-5;
   nlopt_set_ftol_abs(local_opt, local_tolerance);
-  if(optimization_method == 1) { //MLSL-LDS  (deterministic)
+  if(optimization_method == "MLSL-LDS") { // (deterministic)
     opt = nlopt_create(NLOPT_G_MLSL_LDS, params_current.size());
     nlopt_set_local_optimizer(opt, local_opt);
-  } else if(optimization_method == 2) { //MLSL: not very effective?
+  } else if(optimization_method == "MLSL") { // not very effective?
     opt = nlopt_create(NLOPT_G_MLSL, params_current.size());
     nlopt_set_local_optimizer(opt, local_opt);
-  } else if(optimization_method == 3) { //DIRECT  (deterministic)
+  } else if(optimization_method == "DIRECT") { // (deterministic)
     opt = nlopt_create(NLOPT_GN_DIRECT, params_current.size());
-  } else if(optimization_method == 4) { //DIRECT-L  (deterministic)
+  } else if(optimization_method == "DIRECT-L") { // (deterministic)
     opt = nlopt_create(NLOPT_GN_DIRECT_L, params_current.size());
-  } else if(optimization_method == 5) { //CRS
+  } else if(optimization_method == "CRS") { //
     opt = nlopt_create(NLOPT_GN_CRS2_LM, params_current.size());
-  } else if(optimization_method == 6) { //ISRES  (deterministic)
+  } else if(optimization_method == "ISRES") { // (deterministic)
     opt = nlopt_create(NLOPT_GN_ISRES, params_current.size());
-  } else if(optimization_method == 7) { //COBYLA: quits with loss-of-precision errors?
+  } else if(optimization_method == "COBYLA") { // quits with loss-of-precision errors?
     opt = nlopt_create(NLOPT_LN_COBYLA, params_current.size());
   } else { // SBPLX (local)
     opt = local_opt;
