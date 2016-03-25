@@ -32,7 +32,7 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 		name = directory
 		if not os.path.isfile(outer+'orca/'+name+'/'+name+'.orca.engrad'): continue
 		atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad')
-		if 'mp2' not in name or 'qz' in name: continue
+		if 'mp2' not in name or 'qz' in name or 'Pb2Cl3' in name: continue
 		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)
 		for a,b in zip(atoms,with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom

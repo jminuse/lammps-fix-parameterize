@@ -132,7 +132,6 @@ void MinParams::init()
   
   pack_params(); //read parameters from LAMMPS objects into flat arrays
   params_best = params_current;
-  unpack_params(params_current); //put parameters into LAMMPS objects so as to calculate forces next step
   
   printf("Parameters to optimize: %lu\n", params_current.size());
   
@@ -173,103 +172,6 @@ int MinParams::iterate(int maxiter)
 {
   run_NLopt();
   return MAXEVAL;
-
-  //code below here is not used
-
-  bigint ntimestep;
-  for (int iter = 0; iter<maxiter; iter++) {
-
-    ntimestep = ++update->ntimestep;
-    niter++;
-
-    ecurrent = energy_force(0);
-    neval++;
-    if(neval>update->max_eval) {
-      return MAXEVAL;
-    }
-
-
-    update->eflag_atom = update->ntimestep; //needed to avoid error message. TODO: make this less of a hack. 
-    compute_pe->compute_peratom(); //also sort of a hack
-
-
-
-    if(best_error<0) {
-      best_error = calculate_error();
-      write_tersoff_file();
-    }
-    double new_error = calculate_error();
-
-    if(0) { //for testing
-      for(unsigned int i=0; i<params_current.size(); i++) {
-        printf("%.3g->%.3g ", params_best[i], params_current[i]);
-      }
-      puts("");
-      printf("Error: F=%g  E=%g  Sum=%g\n", force_error, energy_error, best_error);
-    }
-    
-    if(new_error < best_error) {
-      //copy params_current into params_best
-      std::copy ( params_current.begin(), params_current.end(), params_best.begin() );
-      best_error = new_error;
-      ready_to_write_file = 1;
-      printf("New best: %f\n", best_error );
-    }
-    counter_since_last_file_write++;
-    if(ready_to_write_file && counter_since_last_file_write>1000)
-        write_tersoff_file();
-        
-    //modify params_current to make a new guess for the next step
-    
-    int RANDOM = 0;
-    int DDS = 1;
-    int HILL_CLIMB = 2;
-
-    double step_size = 0.2; //default in DDS = 0.2
-    
-    if(optimization_method==RANDOM) { //Pick a random point within the bounds
-      for(unsigned int i=0; i<params_current.size(); i++) {
-        params_current[i] = params_lower[i] + (params_upper[i]-params_lower[i])*random->uniform();
-      }
-    }
-    if(optimization_method==DDS) { //Dynamically Dimensioned Search
-      for(unsigned int i=0; i<params_current.size(); i++) {
-        double fraction_done = 1.0*update->ntimestep/update->nsteps;
-        if( random->uniform() < fraction_done-1.0/params_current.size() ) continue; //skip this param (Dynamically Dimensioned Search)
-        double dx = (params_upper[i] - params_lower[i]) * step_size * random->gaussian();
-        params_current[i] = params_best[i] + dx;
-        if(params_current[i] > params_upper[i]) params_current[i] = 2*params_upper[i] - params_current[i]; //reflect across bound
-        if(params_current[i] < params_lower[i]) params_current[i] = 2*params_lower[i] - params_current[i]; //reflect across bound
-      }
-    }
-    else if(optimization_method==HILL_CLIMB) { //Change just one param at a time
-      unsigned int i = int(random->uniform()*params_current.size()); 
-      double dx = (params_upper[i] - params_lower[i]) * step_size * random->gaussian();
-      params_current[i] = params_best[i] + dx;
-      if(params_current[i] > params_upper[i]) params_current[i] = 2*params_upper[i] - params_current[i]; //reflect across bound
-      if(params_current[i] < params_lower[i]) params_current[i] = 2*params_lower[i] - params_current[i]; //reflect across bound
-    }
-    
-    //put parameters into LAMMPS objects so as to calculate forces next step
-    unpack_params(params_current);
-
-    //convergence criteria
-    if(energy_error < update->etol) {
-       return ETOL;
-    }
-    if(force_error<update->ftol) {
-      return FTOL;
-    }
-
-    // output for thermo, dump, restart files
-    if (output->next == ntimestep) {
-      timer->stamp();
-      output->write(ntimestep);
-      timer->stamp(Timer::OUTPUT);
-    }
-  }
-
-  return MAXITER;
 }
 
 
@@ -474,11 +376,39 @@ void MinParams::unpack_params(std::vector<double> pp) {
     unpack_param(bigd, which);
     unpack_param(bigr, which);
     unpack_param(cut, which);
-    
-    //recalculate resulting parameters: cut, cutsq, c1, c2, c3, c4, and cutmax
+  }
+  //enforce Tersoff constraints: use mixing rules from https://www.quantumwise.com/documents/manuals/latest/ReferenceManual/index.html/ref.tersoffmixitpotential.html
+  for(int i = 0; i < tersoff->nelements; i++) {
+    for(int j = 0; j < tersoff->nelements; j++) {
+      for(int k = 0; k < tersoff->nelements; k++) {
+        int index_iii = tersoff->elem2param[i][i][i];
+        int index_jjj = tersoff->elem2param[j][j][j];
+        int index_ijj = tersoff->elem2param[i][j][j];
+        int index_ijk = tersoff->elem2param[i][j][k];
+        //pairwise mixing:
+        tersoff->params[index_ijk].lam1 = 0.5*(tersoff->params[index_iii].lam1 + tersoff->params[index_jjj].lam1);
+        tersoff->params[index_ijk].lam2 = 0.5*(tersoff->params[index_iii].lam2 + tersoff->params[index_jjj].lam2);
+        tersoff->params[index_ijk].biga = sqrt(tersoff->params[index_iii].biga * tersoff->params[index_jjj].biga);
+        tersoff->params[index_ijk].bigb = sqrt(tersoff->params[index_iii].bigb * tersoff->params[index_jjj].bigb);
+        tersoff->params[index_ijk].bigd = sqrt(tersoff->params[index_iii].bigd * tersoff->params[index_jjj].bigd);
+        tersoff->params[index_ijk].bigr = sqrt(tersoff->params[index_iii].bigr * tersoff->params[index_jjj].bigr);
+        //directly copied parameters
+        tersoff->params[index_ijk].beta = tersoff->params[index_iii].beta;
+        tersoff->params[index_ijk].powern = tersoff->params[index_iii].powern;
+        tersoff->params[index_ijk].c = tersoff->params[index_iii].c;
+        tersoff->params[index_ijk].d = tersoff->params[index_iii].d;
+        tersoff->params[index_ijk].h = tersoff->params[index_iii].h;
+        //3-wise:
+        tersoff->params[index_ijk].gamma = tersoff->params[index_ijj].gamma;
+        tersoff->params[index_ijk].lam3 = tersoff->params[index_ijj].lam3;
+        tersoff->params[index_ijk].powerm = tersoff->params[index_ijj].powerm;
+      }
+    }
+  }
+  //recalculate resulting parameters in Tersoff param objects: cut, cutsq, c1, c2, c3, c4, and cutmax
+  for(int i=0; i<tersoff->nparams; i++) {
     tersoff->params[i].cut = tersoff->params[i].bigr + tersoff->params[i].bigd;
     tersoff->params[i].cutsq = tersoff->params[i].cut*tersoff->params[i].cut;
-    //printf("my cutsq %d %d %d = %f\n", tersoff->params[i].ielement, tersoff->params[i].jelement, tersoff->params[i].kelement, tersoff->params[i].cutsq);
     tersoff->params[i].c1 = pow(2.0*tersoff->params[i].powern*1.0e-16,-1.0/tersoff->params[i].powern);
     tersoff->params[i].c2 = pow(2.0*tersoff->params[i].powern*1.0e-8,-1.0/tersoff->params[i].powern);
     tersoff->params[i].c3 = 1.0/tersoff->params[i].c2;
@@ -492,16 +422,12 @@ void MinParams::unpack_params(std::vector<double> pp) {
     unpack_typewise_param(lj_sigma_upper, lj_sigma_lower, lj_sigma_current, which);
     unpack_typewise_param(lj_epsilon_upper, lj_epsilon_lower, lj_epsilon_current, which);
   }
-  //modify charges
+  //enforce charge constraint: Only charge on type 0 matters, q_1 = -0.5*q_0
+  charges_current[1] = -0.5*charges_current[0];
+  //put new charge on each atom
   for(int a=0; a < atom->natoms; a++) {
-    for(int type=0; type < atom->ntypes; type++) {
-      if(atom->type[a] == type+1) //atom->type[] is zero-indexed
-        atom->q[a] = charges_current[type]; //atom->q[] is zero-indexed
-        //todo: make sure there are no resulting parameters based on charge that need to be recalculated after changing charge
-    }
-  //printf("Atom %d: t=%d, q=%f\n", a, atom->type[a], atom->q[a]);
+    atom->q[a] = charges_current[atom->type[a]-1]; //todo: make sure there are no resulting parameters based on charge that need to be recalculated after changing charge
   }
-  
   //modify LJ parameters
   for(int type=0; type < atom->ntypes; type++) {
     lj->sigma[type+1][type+1] = lj_sigma_current[type]; //lj->sigma and lj->epsilon are 1-indexed
@@ -592,7 +518,7 @@ void MinParams::run_NLopt() {
     opt = nlopt_create(NLOPT_GN_CRS2_LM, params_current.size());
   } else if(optimization_method == 6) { //ISRES  (deterministic)
     opt = nlopt_create(NLOPT_GN_ISRES, params_current.size());
-  } else if(optimization_method == 7) { //COBYLA: causes loss-of-precision errors?
+  } else if(optimization_method == 7) { //COBYLA: quits with loss-of-precision errors?
     opt = nlopt_create(NLOPT_LN_COBYLA, params_current.size());
   } else { // SBPLX (local)
     opt = local_opt;
@@ -603,7 +529,7 @@ void MinParams::run_NLopt() {
     assert(params_upper[i]>=params_current[i]);
     assert(params_current[i]>=params_lower[i]);
   }
-  double tolerance = 1e-8;
+  double tolerance = 1e-15;
   nlopt_set_lower_bounds(opt, &params_lower[0]);
   nlopt_set_upper_bounds(opt, &params_upper[0]);
   nlopt_set_maxeval(opt, update->max_eval);
@@ -615,6 +541,9 @@ void MinParams::run_NLopt() {
   int return_code = nlopt_optimize(opt, &params_current[0], &error);
   if(return_code < 0) {
     printf("NLopt failed with code %d\n", return_code);
+  }
+  else {
+    printf("NLopt finished with code %d\n", return_code);
   }
 }
 
