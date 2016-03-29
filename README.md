@@ -57,6 +57,9 @@ When you start work:
 git pull
 
 To save changes:
+
 git add -u
+
 git commit -m "Comment about the changes"
+
 git push
