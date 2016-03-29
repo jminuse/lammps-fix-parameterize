@@ -1,5 +1,5 @@
 from merlin import *
-import shutil
+import shutil, re
 
 run_name = sys.argv[1] if len(sys.argv)>1 else 'test'
 random_seed = sys.argv[2] if len(sys.argv)>2 else '1'
@@ -25,17 +25,19 @@ extra = {
 system = utils.System(box_size=[30, 30, 30], name=run_name)
 DMSO = utils.Molecule('molecules/dmso')
 PbCl2 = utils.Molecule('molecules/PbCl2', extra_parameters=extra, check_charges=False)
-files.packmol(system, (DMSO,PbCl2), (20,1), 0.4, random_seed)
+system.add(PbCl2)
+system.add(PbCl2, 8.0)
+#files.packmol(system, (DMSO,PbCl2), (20,1), 0.4, random_seed)
 #files.write_xyz(system.atoms)
 
 os.chdir('lammps')
 files.write_lammps_data(system)
 
-shutil.copy('input.tersoff', system.name+'_input.tersoff')
+shutil.copy('md_input.tersoff', system.name+'_input.tersoff')
 
 commands = ('''units real
 atom_style full
-pair_style hybrid/overlay lj/cut/coul/inout 0.2 3.5 12 tersoff
+pair_style hybrid/overlay lj/cut/coul/inout 0.2 0.0 12 tersoff
 bond_style harmonic
 angle_style harmonic
 dihedral_style opls
@@ -46,17 +48,20 @@ read_data	'''+system.name+'''.data
 ''').splitlines()
 
 for line in open(system.name+'_input.tersoff'):
-	if line.startswith('# Charges:'): charges = line.split()[2:]
+	if line.startswith('# Charges:'): charges = line.split()[2:] #assumes there are 2 tersoff types
 	if line.startswith('# LJ-sigma:'): lj_sigma = line.split()[2:]
 	if line.startswith('# LJ-epsilon:'): lj_epsilon = line.split()[2:]
+	
+tersoff_cutoffs = re.findall('\n     +\S+ +\S+ +\S+ +\S+ +(\S+)', open(system.name+'_input.tersoff').read())
+inner_cutoffs = [float(tersoff_cutoffs[0]), float(tersoff_cutoffs[-1])] #assumes there are 2 tersoff types
 
 for i in range(len(system.atom_types)):
 	for j in range(i, len(system.atom_types)):
 		if i>=len(charges) or j>=len(charges):
 			commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5) )
 		else:
-			commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 3.5' % (i+1, j+1, (float(lj_epsilon[i])*float(lj_epsilon[j]))**0.5, (float(lj_sigma[i])*float(lj_sigma[j]))**0.5) )
-			commands.append('set type %d charge %f' % (i+1, float(charges[i])) )
+			commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f %f' % (i+1, j+1, (float(lj_epsilon[i])*float(lj_epsilon[j]))**0.5, (float(lj_sigma[i])*float(lj_sigma[j]))**0.5, (inner_cutoffs[i]*inner_cutoffs[j])**0.5) )
+			commands.append('set type %d charge %f' % (i+1, float(charges[i])) ) #todo: set inner cutoff dynamically from Tersoff file
 
 lmp = utils.Struct()
 lmp.file = open(system.name+'.in', 'w')

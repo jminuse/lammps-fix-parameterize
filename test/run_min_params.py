@@ -34,7 +34,7 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 		name = directory
 		if not os.path.isfile(outer+'orca/'+name+'/'+name+'.orca.engrad'): continue
 		atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad')
-		if 'mp2' not in name or 'qz' in name: continue # or 'Pb2Cl3' in name
+		if len(atoms)>6 or 'mp2' not in name or 'qz' in name or len(atoms)==5: continue
 		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)
 		for a,b in zip(atoms,with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
@@ -96,7 +96,7 @@ special_bonds lj/coul 0.0 0.0 0.5
 boundary f f f
 read_data	'''+system.name+'''.data
 
-pair_coeff * * lj/cut/coul/inout 0.0 1.0 3.5 #TODO: allow inout radius to vary in parameterization?
+pair_coeff * * lj/cut/coul/inout 0.0 1.0 3.5
 ''').splitlines()
 lmp = utils.Struct()
 lmp.file = open(system.name+'.in', 'w')

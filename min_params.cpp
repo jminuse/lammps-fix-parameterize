@@ -31,8 +31,8 @@
 #include <vector> //for std:vector
 #include <algorithm> //for std:copy and std::fill
 #include <fstream> //for file reading
-#include <string> //for file reading
-#include <string.h> //for strtok
+#include <string> //for C++ string syntax
+#include <string.h> //for strtok() function
 
 #include <assert.h>
 
@@ -63,10 +63,10 @@ void MinParams::modify_params(int narg, char **arg)
   std::string optimization_method = std::string(arg[1]); //name of algorithm
   random_seed = force->inumeric(FLERR,arg[2]);
   
-  if(optimization_method == "DIRECT") { // deterministic
+  if(optimization_method == "DIRECT") { // DIviding RECTangles algorithm, deterministic
     algorithm = NLOPT_GN_DIRECT;
-  } else if(optimization_method == "DIRECT-L") { // deterministic
-    algorithm = NLOPT_GN_DIRECT_L;
+  } else if(optimization_method == "DIRECT-L") { // DIviding RECTangles algorithm, Locally-biased, non-deterministic
+    algorithm = NLOPT_GN_DIRECT_L_RAND;
   } else if(optimization_method == "CRS") { // Controlled Random Search
     algorithm = NLOPT_GN_CRS2_LM;
   } else if(optimization_method == "ISRES") { // Improved Stochastic Ranking Evolution Strategy. Mutation + local simplex optimization. 
@@ -162,31 +162,6 @@ void MinParams::init()
 
 /* ---------------------------------------------------------------------- */
 
-void MinParams::setup_style()
-{
-  double **v = atom->v;
-  int nlocal = atom->nlocal;
-
-  for (int i = 0; i < nlocal; i++)
-    v[i][0] = v[i][1] = v[i][2] = 0.0;
-}
-
-/* ----------------------------------------------------------------------
-   set current vector lengths and pointers
-   called after atoms have migrated
-------------------------------------------------------------------------- */
-
-void MinParams::reset_vectors()
-{
-  // atomic dof
-
-  nvec = 3 * atom->nlocal;
-  if (nvec) xvec = atom->x[0];
-  if (nvec) fvec = atom->f[0];
-}
-
-/* ---------------------------------------------------------------------- */
-
 int MinParams::iterate(int maxiter)
 {
   run_NLopt();
@@ -207,25 +182,24 @@ void MinParams::read_params_from_comments(std::string filename, std::vector<doub
   while(std::getline(infile, line)) {
     if(line.rfind(charge_label, 0) == 0) {
       for(int type=0; type < atom->ntypes; type++) {
-        char *token = strtok( (type==0?((char*)line.c_str()+charge_label.size()):NULL), " ");
-        charges[type] = force->numeric(FLERR,token); //strtok needs first arg to be NULL on all calls after the first
+        char *token = strtok( (type==0?((char*)line.c_str()+charge_label.size()):NULL), " "); //strtok needs first arg to be NULL on all calls after the first
+        charges[type] = force->numeric(FLERR,token);
       }
     }
     if(line.rfind(lj_sigma_label, 0) == 0) {
       for(int type=0; type < atom->ntypes; type++) {
-        char *token = strtok( (type==0?((char*)line.c_str()+lj_sigma_label.size()):NULL), " ");
-        lj_sigma[type] = force->numeric(FLERR,token); //strtok needs first arg to be NULL on all calls after the first
+        char *token = strtok( (type==0?((char*)line.c_str()+lj_sigma_label.size()):NULL), " "); //strtok needs first arg to be NULL on all calls after the first
+        lj_sigma[type] = force->numeric(FLERR,token);
       }
     }
     if(line.rfind(lj_epsilon_label, 0) == 0) {
       for(int type=0; type < atom->ntypes; type++) {
-        char *token = strtok( (type==0?((char*)line.c_str()+lj_epsilon_label.size()):NULL), " ");
-        lj_epsilon[type] = force->numeric(FLERR,token); //strtok needs first arg to be NULL on all calls after the first
+        char *token = strtok( (type==0?((char*)line.c_str()+lj_epsilon_label.size()):NULL), " "); //strtok needs first arg to be NULL on all calls after the first
+        lj_epsilon[type] = force->numeric(FLERR,token);
       }
     }
   }
 }
-
 
 double MinParams::calculate_error()
 {
@@ -376,6 +350,8 @@ void MinParams::pack_params() {
 
 #define unpack_typewise_param(HI,LO,X,I) if( HI[type]>LO[type] ) { X[type] = pp[I]; I++; }
 
+#define iff(X) if( !( tersoff_upper_bound->params[index_ijk].X > tersoff_lower_bound->params[index_ijk].X ) )
+
 void MinParams::unpack_params(std::vector<double> pp) {
   int which = 0;
   //unpack Tersoff parameters from the flat array to the LAMMPS object
@@ -397,30 +373,31 @@ void MinParams::unpack_params(std::vector<double> pp) {
     unpack_param(cut, which);
   }
   //enforce Tersoff constraints: use mixing rules from https://www.quantumwise.com/documents/manuals/latest/ReferenceManual/index.html/ref.tersoffmixitpotential.html
-  for(int i = 0; i < tersoff->nelements; i++) {
+  for(int i = 0; i < tersoff->nelements; i++) { //assumes Tersoff elements come first in type list!
     for(int j = 0; j < tersoff->nelements; j++) {
       for(int k = 0; k < tersoff->nelements; k++) {
         int index_iii = tersoff->elem2param[i][i][i];
         int index_jjj = tersoff->elem2param[j][j][j];
         int index_ijj = tersoff->elem2param[i][j][j];
         int index_ijk = tersoff->elem2param[i][j][k];
-        //pairwise mixing:
-        tersoff->params[index_ijk].lam1 = 0.5*(tersoff->params[index_iii].lam1 + tersoff->params[index_jjj].lam1);
-        tersoff->params[index_ijk].lam2 = 0.5*(tersoff->params[index_iii].lam2 + tersoff->params[index_jjj].lam2);
-        tersoff->params[index_ijk].biga = sqrt(tersoff->params[index_iii].biga * tersoff->params[index_jjj].biga);
-        tersoff->params[index_ijk].bigb = sqrt(tersoff->params[index_iii].bigb * tersoff->params[index_jjj].bigb);
-        tersoff->params[index_ijk].bigd = sqrt(tersoff->params[index_iii].bigd * tersoff->params[index_jjj].bigd);
-        tersoff->params[index_ijk].bigr = sqrt(tersoff->params[index_iii].bigr * tersoff->params[index_jjj].bigr);
+        //pairwise mixing: 
+        iff(lam1) tersoff->params[index_ijk].lam1 = 0.5*(tersoff->params[index_iii].lam1 + tersoff->params[index_jjj].lam1);
+        iff(lam2) tersoff->params[index_ijk].lam2 = 0.5*(tersoff->params[index_iii].lam2 + tersoff->params[index_jjj].lam2);
+        iff(biga) tersoff->params[index_ijk].biga = sqrt(tersoff->params[index_iii].biga * tersoff->params[index_jjj].biga);
+        iff(bigb) tersoff->params[index_ijk].bigb = sqrt(tersoff->params[index_iii].bigb * tersoff->params[index_jjj].bigb);
+        iff(bigd) tersoff->params[index_ijk].bigd = sqrt(tersoff->params[index_iii].bigd * tersoff->params[index_jjj].bigd);
+        iff(bigr) tersoff->params[index_ijk].bigr = sqrt(tersoff->params[index_iii].bigr * tersoff->params[index_jjj].bigr);
+		lj->cut_inner[i+1][j+1] = tersoff->params[index_ijk].bigr; //copy Tersoff cutoff into pair inout
         //directly copied parameters
-        tersoff->params[index_ijk].beta = tersoff->params[index_iii].beta;
-        tersoff->params[index_ijk].powern = tersoff->params[index_iii].powern;
-        tersoff->params[index_ijk].c = tersoff->params[index_iii].c;
-        tersoff->params[index_ijk].d = tersoff->params[index_iii].d;
-        tersoff->params[index_ijk].h = tersoff->params[index_iii].h;
+        iff(beta) tersoff->params[index_ijk].beta = tersoff->params[index_iii].beta;
+        iff(powern) tersoff->params[index_ijk].powern = tersoff->params[index_iii].powern;
+        iff(c) tersoff->params[index_ijk].c = tersoff->params[index_iii].c;
+        iff(d) tersoff->params[index_ijk].d = tersoff->params[index_iii].d;
+        iff(h) tersoff->params[index_ijk].h = tersoff->params[index_iii].h;
         //3-wise:
-        tersoff->params[index_ijk].gamma = tersoff->params[index_ijj].gamma;
-        tersoff->params[index_ijk].lam3 = tersoff->params[index_ijj].lam3;
-        tersoff->params[index_ijk].powerm = tersoff->params[index_ijj].powerm;
+        iff(gamma) tersoff->params[index_ijk].gamma = tersoff->params[index_ijj].gamma;
+        iff(lam3) tersoff->params[index_ijk].lam3 = sqrt(tersoff->params[index_iii].lam3*tersoff->params[index_jjj].lam3); //tersoff->params[index_ijj].lam3 ?
+        iff(powerm) tersoff->params[index_ijk].powerm = tersoff->params[index_ijj].powerm;
       }
     }
   }
@@ -451,6 +428,7 @@ void MinParams::unpack_params(std::vector<double> pp) {
   for(int type=0; type < atom->ntypes; type++) {
     lj->sigma[type+1][type+1] = lj_sigma_current[type]; //lj->sigma and lj->epsilon are 1-indexed
     lj->epsilon[type+1][type+1] = lj_epsilon_current[type];
+	//modify rcut inner here?
   }
   //recalculate resulting parameters
   for(int i=1; i <= atom->ntypes; i++) {

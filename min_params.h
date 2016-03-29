@@ -40,11 +40,11 @@ class MinParams : public Min {
   MinParams(class LAMMPS *);
   ~MinParams() {}
   void init();
-  void setup_style();
-  void reset_vectors();
+  void setup_style() {}; // unused function
+  void reset_vectors() {}; // unused function
   int iterate(int);
-  void modify_params(int, char **); //to set run_name, etc
-  double NLopt_target_function(unsigned params_count, const double *params);
+  void modify_params(int, char **); // to set run_name, etc
+  double NLopt_target_function(unsigned params_count, const double *params); //function which gets evaluated by the NLopt library
 
  protected:
   int random_seed;
@@ -95,7 +95,6 @@ class MinParams : public Min {
   void read_params_from_comments(std::string filename, std::vector<double> &charges, std::vector<double> &lj_sigma, std::vector<double> &lj_epsilon);
   void run_NLopt();
 };
-
 }
 
 #endif

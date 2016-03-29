@@ -151,6 +151,34 @@ def analyze_md_states_Pb2Cl3():
 			if a.element=='Cl': a.label='344'
 		files.write_cml(atoms, name='orca/'+name+'/system.cml')
 
-analyze_md_states_Pb2Cl3()
+def analyze_md_states_PbCl2():
+	states = files.read_xyz('PbCl2_states')[10::20]
+	running_jobs = []
+	for i,atoms in enumerate(states):
+		maintain_queue_size(running_jobs, 2)
+		name = 'PbCl2_MD_%d_mp2' % (i+6)
+		print 'Running', name
+		job = orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv', atoms, queue=None, grad=True, charge_and_multiplicity='0 1', previous='PbCl2_MD_1_mp2')
+		running_jobs.append(job)
+		for a in atoms: #labels for cml file
+			if a.element=='Pb': a.label='907'
+			if a.element=='Cl': a.label='344'
+		files.write_cml(atoms, name='orca/'+name+'/system.cml')
+
+def analyze_md_states_Pb2Cl4():
+	states = files.read_xyz('Pb2Cl4_states')[5::5]
+	running_jobs = []
+	for i,atoms in enumerate(states):
+		maintain_queue_size(running_jobs, 2)
+		name = 'Pb2Cl4_MD_%d_mp2' % (i)
+		print 'Running', name
+		job = orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv', atoms, queue=None, grad=True, charge_and_multiplicity='0 1', previous=('Pb2Cl4_MD_0_mp2' if i>1 else None))
+		running_jobs.append(job)
+		for a in atoms: #labels for cml file
+			if a.element=='Pb': a.label='907'
+			if a.element=='Cl': a.label='344'
+		files.write_cml(atoms, name='orca/'+name+'/system.cml')
+		
+analyze_md_states_Pb2Cl4()
 
 
