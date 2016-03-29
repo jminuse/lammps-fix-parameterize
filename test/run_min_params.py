@@ -33,12 +33,14 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 	for directory in directories:
 		name = directory
 		if not os.path.isfile(outer+'orca/'+name+'/'+name+'.orca.engrad'): continue
-		atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad')
+		atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad', pos='Ang')
 		if len(atoms)>6 or 'mp2' not in name or 'qz' in name or len(atoms)==5: continue
 		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)
 		for a,b in zip(atoms,with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
 			b.fx, b.fy, b.fz = a.fx*convert, a.fy*convert, a.fz*convert
+			if utils.dist(a,b)>1e-4:
+				raise Exception('Atoms too different:', (a.x,a.y,a.z), (b.x,b.y,b.z))
 		with_bonds.energy = energy
 		composition = ' '.join(sorted([a.element for a in atoms]))
 		if composition not in systems_by_composition:
@@ -53,8 +55,8 @@ for composition in systems_by_composition: #within each type of system, lowest e
 	for s in systems_by_composition[composition]:
 		s.energy -= baseline_energy
 		s.energy *= 627.5 #Convert Hartree to kcal/mol
-		print utils.dist(*s.atoms[:2]), s.energy
-		xyz_atoms.append(s.atoms)
+		print utils.dist(*s.atoms[:2]), s.energy #for testing purposes
+		xyz_atoms.append(s.atoms) #for testing purposes
 		system.add(s, len(system.molecules)*1000.0)
 
 system.box_size[0] = len(system.molecules)*1000.0*2+200.0
@@ -106,13 +108,8 @@ lmp.command = writeline
 for line in commands:
 	lmp.command(line)
 
-#run LAMMPS
 lmp.command('pair_coeff * * tersoff '+system.name+'_input.tersoff Pb Cl '+(' NULL'*(len(system.atom_types)-2)) )
 
-#for t in system.atom_types:
-#	if hasattr(t,'vdw_e'):
-#		lmp.command('set type %d charge %f' % (t.lammps_type, t.charge))
-#		lmp.command('pair_coeff %d * lj/cut/coul/inout %f	%f' % (t.lammps_type, t.vdw_e, t.vdw_r) )
 for t in system.bond_types:
 	lmp.command('bond_coeff %d	%f %f' % (t.lammps_type, t.e, t.r) )
 for t in system.angle_types:

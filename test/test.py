@@ -179,6 +179,16 @@ def analyze_md_states_Pb2Cl4():
 			if a.element=='Cl': a.label='344'
 		files.write_cml(atoms, name='orca/'+name+'/system.cml')
 		
-analyze_md_states_Pb2Cl4()
+def opt_Pb2Cl4():
+	#orca.job('Pb2Cl4_MD_opt3_mp2', '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid3 FinalGrid5 SlowConv Opt LooseOpt', queue=None, previous='Pb2Cl4_MD_opt_mp2', procs=1, extra_section='%scf SOSCFStart 0.00003 end')
+	#orca.job('Pb2Cl4_MD_opt4_mp2', '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid3 FinalGrid5 SlowConv Opt LooseOpt', atoms=files.read_xyz('states'), queue=None, previous='Pb2Cl4_MD_opt_mp2', procs=1, extra_section='%scf SOSCFStart 0.00003 end')
+	#orca.job('Pb2Cl4_MD_opt6_mp2', '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv', queue=None, grad=True, previous='Pb2Cl4_MD_opt4_mp2')
+	for name in ['Pb2Cl4_MD_opt5_mp2', 'Pb2Cl4_MD_opt6_mp2']:
+		atoms = orca.read(name).atoms
+		for a in atoms: #labels for cml file
+			if a.element=='Pb': a.label='907'
+			if a.element=='Cl': a.label='344'
+		files.write_cml(atoms, name='orca/'+name+'/system.cml')
 
+opt_Pb2Cl4()
 
