@@ -52,6 +52,9 @@ enum{MAXITER,MAXEVAL,ETOL,FTOL,DOWNHILL,ZEROALPHA,ZEROFORCE,ZEROQUAD};
 
 MinParams::MinParams(LAMMPS *lmp) : Min(lmp) {}
 
+#define OPT_PRINT_ALL NLOPT_LD_LBFGS //used as code for "PRINT"
+#define OPT_RAND_SBPLX NLOPT_LD_SLSQP //used as code for RAND_SBPLX
+
 /* ---------------------------------------------------------------------- */
 
 void MinParams::modify_params(int narg, char **arg)
@@ -76,9 +79,15 @@ void MinParams::modify_params(int narg, char **arg)
   } else if(optimization_method == "ESCH") { // evolutionary algorithm. Certainly slow, possibly steady. 
     algorithm = NLOPT_GN_ESCH;
   } else if(optimization_method == "BOBYQA") { // "Error -4: Halted because roundoff errors limited progress."
-    algorithm = NLOPT_LN_BOBYQA;  
-  } else { // SBPLX (local)
-    optimization_method = "SBPLX";
+    algorithm = NLOPT_LN_BOBYQA;
+  } else if(optimization_method == "NELDERMEAD") { // Nelder-Mead simplex. "Error -4: Halted because roundoff errors limited progress."
+    algorithm = NLOPT_LN_NELDERMEAD;  
+  } else if(optimization_method == "PRINT") { // Print energy and force results at current parameters
+    algorithm = OPT_PRINT_ALL;
+  } else if(optimization_method == "RAND_SBPLX") { // Print energy and force results at current parameters
+    algorithm = OPT_RAND_SBPLX;
+  } else {
+    optimization_method = "SBPLX";  // SBPLX (local, based on Nelder-Mead simplex)
     algorithm = NLOPT_LN_SBPLX;
   }
   
@@ -240,7 +249,13 @@ double MinParams::calculate_error()
     energy_error += error*error;
   }
   
-  if(0) { //for testing: set to 1 to print energy comparison, then exit
+  if(algorithm == OPT_PRINT_ALL) { //for testing: set as true to print force and energy comparison, then exit
+    for(unsigned int i=0; i<target_forces.size(); i+=3) {
+      double dfx = f[i/3][0] - target_forces[i];
+      double dfy = f[i/3][1] - target_forces[i+1];
+      double dfz = f[i/3][2] - target_forces[i+2];
+      printf("F: %g %g %g vs. %g %g %g\n", f[i/3][0], f[i/3][1], f[i/3][2], target_forces[i], target_forces[i+1], target_forces[i+2]);
+    }
     for(unsigned int i=0; i<target_energies.size(); i++) {
       printf("E: %g %g\n", target_energies[i], current_energies[i]);
     }
@@ -497,7 +512,14 @@ double NLopt_target_function_wrapper(unsigned params_count, const double *params
 void MinParams::run_NLopt() {
   puts("Running NLopt optimization...");
   
-  nlopt_opt opt = nlopt_create(algorithm, params_current.size());
+  nlopt_opt opt;
+  if(algorithm==OPT_RAND_SBPLX) {
+    for(unsigned int i=0; i<params_current.size(); i++)
+      params_current[i] = params_lower[i] + random->uniform()*(params_upper[i]-params_lower[i]);
+    opt = nlopt_create(NLOPT_LN_SBPLX, params_current.size());
+  }
+  else
+    opt = nlopt_create(algorithm, params_current.size());
   nlopt_srand(random_seed);
   
   //enforce requirement of NLopt, that guess must be within the bounds

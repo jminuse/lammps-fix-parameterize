@@ -28,7 +28,18 @@ acetone = utils.Molecule('molecules/acetone')
 PbCl2 = utils.Molecule('molecules/PbCl2', extra_parameters=extra, check_charges=False)
 MACl = utils.Molecule('molecules/MACl', extra_parameters=extra, check_charges=False)
 
-if 1: #solvent+solute cluster
+if 1:
+	PbCl6_neg4 = utils.Molecule('molecules/PbCl6_4-', extra_parameters=extra, check_charges=False)
+	system.add(PbCl6_neg4)
+elif 0: #solvent+solute cluster
+	for xi in range(-1,1):
+		for yi in range(-1,1):
+			for zi in range(1):
+				system.add(PbCl2, xi*6, yi*6, zi*6)
+elif 0: #Pb2Cl
+	Pb2Cl_3 = utils.Molecule('molecules/Pb2Cl_3+', extra_parameters=extra, check_charges=False)
+	system.add(Pb2Cl_3)
+elif 0: #solvent+solute cluster
 	for xi in range(3):
 		for yi in range(3):
 			system.add(DMSO, (xi-0.5)*6, (yi-0.5)*6)
@@ -78,17 +89,19 @@ for line in open(system.name+'_input.tersoff'):
 tersoff_cutoffs = re.findall('\n     +\S+ +\S+ +\S+ +\S+ +(\S+)', open(system.name+'_input.tersoff').read())
 inner_cutoffs = [float(tersoff_cutoffs[0]), float(tersoff_cutoffs[-1])] #assumes there are 2 tersoff types
 
-sulfur_type = [i for i,t in enumerate(system.atom_types) if t.element==16][0]
+try:
+	sulfur_type = [i for i,t in enumerate(system.atom_types) if t.element==16][0]
+except IndexError:
+	pass
 pb_type = 0
+cl_type = 1
 
 for i in range(len(system.atom_types)):
 	for j in range(i, len(system.atom_types)):
 		if i>=len(charges) or j>=len(charges):
-			if i==pb_type and j==sulfur_type:
-				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5+1.0) )
-			elif i==pb_type:
+			if i==pb_type:
 				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5-0.5) )
-			elif i==1:
+			elif i==cl_type:
 				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5+0.5) )
 			else:
 				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5) )
@@ -121,8 +134,8 @@ minimize 0.0 1.0e-8 1000 100000
 min_style fire
 minimize 0.0 1.0e-8 1000 100000
 #fix motion all npt temp 300.0 300.0 100.0 iso 1.0 1.0 1000.0
-fix motion all nvt temp 200.0 200.0 100.0
-velocity all create 200.0 '''+random_seed+''' rot yes dist gaussian
+fix motion all nvt temp 400.0 400.0 100.0
+velocity all create 400.0 '''+random_seed+''' rot yes dist gaussian
 timestep 1.0
 run 10000
 '''

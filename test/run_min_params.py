@@ -33,8 +33,12 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 	for directory in directories:
 		name = directory
 		if not os.path.isfile(outer+'orca/'+name+'/'+name+'.orca.engrad'): continue
-		atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad', pos='Ang')
-		if len(atoms)>6 or 'mp2' not in name or 'qz' in name or len(atoms)==5: continue
+		try:
+			atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad', pos='Ang')
+		except IndexError:
+			continue
+		#if name not in ['PbCl6_-4_sp2_%d' % i for i in range(12)]:
+		if len(atoms)>7 or 'mp2' not in name or 'qz' in name or len(atoms)==5: continue
 		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)
 		for a,b in zip(atoms,with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
@@ -55,7 +59,8 @@ for composition in systems_by_composition: #within each type of system, lowest e
 	for s in systems_by_composition[composition]:
 		s.energy -= baseline_energy
 		s.energy *= 627.5 #Convert Hartree to kcal/mol
-		print utils.dist(*s.atoms[:2]), s.energy #for testing purposes
+		#todo: add energy cutoff, e.g. 1000 kcal/mol?
+		print composition, s.energy #for testing purposes
 		xyz_atoms.append(s.atoms) #for testing purposes
 		system.add(s, len(system.molecules)*1000.0)
 
