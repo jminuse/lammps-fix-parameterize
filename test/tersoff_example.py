@@ -51,6 +51,10 @@ for composition in systems_by_composition: #within each type of system, lowest e
 		system.add(s, len(system.molecules)*1000.0)
 
 system.box_size[0] = len(system.molecules)*1000.0*2+200.0
+count = 0
+for m in system.molecules:
+	files.write_xyz(m.atoms,str(count))
+	count += 1
 
 os.chdir('lammps')
 files.write_lammps_data(system)
