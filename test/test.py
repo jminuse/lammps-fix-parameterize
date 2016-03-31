@@ -226,7 +226,7 @@ def analyze_md_states_Pb4Cl8():
 def PbCl6_neg4():
 	atoms = files.read_xyz('molecules/PbCl6_4-')
 	#orca.job('PbCl6_-4_opt', '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid3 FinalGrid5 SlowConv Opt LooseOpt', atoms, queue=None, procs=1, charge_and_multiplicity='-4 1', extra_section='%scf SOSCFStart 0.00003 end')
-	orca.job('PbCl6_-4_opt_mp2', '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv GridX6 Opt LooseOpt', queue='batch', grad=True, previous='PbCl6_-4_sp_0_mp2', extra_section='%scf SOSCFStart 0.00033 directresetfreq 1 MaxIter 500 end')
+	orca.job('PbCl6_-4_opt_mp2', '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv Opt LooseOpt', queue=None, extra_section='%scf SOSCFStart 0.00003 end', charge_and_multiplicity='-4 1', previous='PbCl6_-4_opt')
 
 def PbCl6_neg4_states():
 	base_atoms = orca.read('PbCl6_-4_opt').atoms
@@ -250,20 +250,17 @@ def show_PbCl6_neg4_states():
 def PbCl6_neg4_states_mp2():
 	running_jobs = []
 	for i in range(1,12):
-		maintain_queue_size(running_jobs, 4)
+		#maintain_queue_size(running_jobs, 4)
 		old_name = 'PbCl6_-4_sp_%d' % i
 		name = 'PbCl6_-4_sp_%d_mp2' % i
 		atoms = orca.read(old_name).atoms
 		print 'Running', name
-		job = orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv GridX6', atoms, queue=None, grad=True, previous='PbCl6_-4_sp_0_mp2', extra_section='%scf SOSCFStart 0.00033 directresetfreq 1 MaxIter 500 end')
+		job = orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv', atoms, queue='batch', grad=True, previous='PbCl6_-4_opt_mp2', extra_section='%scf SOSCFStart 0.00003 end', charge_and_multiplicity='-4 1')
 		running_jobs.append(job)
 		for a in atoms: #labels for cml file
 			if a.element=='Pb': a.label='907'
 			if a.element=='Cl': a.label='344'
 		files.write_cml(atoms, name='orca/'+name+'/system.cml')
-
-PbCl6_neg4()
-#PbCl6_neg4_states_mp2()
 
 def PbCl6_neg4_states_grad():
 	running_jobs = []
@@ -279,4 +276,130 @@ def PbCl6_neg4_states_grad():
 			if a.element=='Pb': a.label='907'
 			if a.element=='Cl': a.label='344'
 		files.write_cml(atoms, name='orca/'+name+'/system.cml')
+
+def PbCl6_neg4_md_mp2():
+	states = files.read_xyz('pbcl6_states')[1::10]
+	for i,atoms in enumerate(states):
+		name = 'PbCl6_-4_md_%d_mp2' % i
+		orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv', atoms, queue='batch', grad=True, previous='PbCl6_-4_opt_mp2', extra_section='%scf SOSCFStart 0.00003 end', charge_and_multiplicity='-4 1')
+		for a in atoms: #labels for cml file
+			if a.element=='Pb': a.label='907'
+			if a.element=='Cl': a.label='344'
+		files.write_cml(atoms, name='orca/'+name+'/system.cml')
+
+#PbCl6_neg4_md_mp2()
+#PbCl6_neg4_states_mp2()
+#PbCl6_neg4()
+
+def PbCl6_neg4_opt_sp_mp2():
+	states = orca.read('PbCl6_-4_opt_mp2').frames
+	for i,atoms in enumerate(states):
+		name = 'PbCl6_-4_opt_%d_mp2' % i
+		orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv', atoms, queue='batch', grad=True, previous='PbCl6_-4_opt_mp2', extra_section='%scf SOSCFStart 0.00003 end', charge_and_multiplicity='-4 1')
+		for a in atoms: #labels for cml file
+			if a.element=='Pb': a.label='907'
+			if a.element=='Cl': a.label='344'
+		files.write_cml(atoms, name='orca/'+name+'/system.cml')
+
+def PbCl6_bigger_basis():
+	directories = next(os.walk('orca'))[1]
+	for directory in directories:
+		name = directory
+		if 'PbCl6' not in name: continue
+		if not os.path.isfile('orca/'+name+'/'+name+'.orca.engrad'): continue
+		if not os.path.isfile('orca/'+name+'/system.cml'): continue
+		try:
+			atoms, energy = orca.engrad_read('orca/'+name+'/'+name+'.orca.engrad', pos='Ang')
+		except IndexError:
+			continue
+		if name.endswith('_ma'): continue
+		print name
+		old_name = name
+		name = old_name + '_ma' # Add minimally-augmented basis set, because anion. Without this, anion errors can be quite large. 
+		#orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ ma-def2-TZVP ECP{def2-TZVP} AutoAux TIGHTSCF Grid5 FinalGrid6 SlowConv', queue='batch', grad=True, previous=old_name, extra_section='%scf SOSCFStart 0.00003 end', charge_and_multiplicity='-4 1')
+		atoms = orca.read(old_name).atoms
+		for a in atoms: #labels for cml file
+			if a.element=='Pb': a.label='907'
+			if a.element=='Cl': a.label='344'
+		files.write_cml(atoms, name='orca/'+name+'/system.cml')
+
+def PbCl6_bigger_bigger_basis():
+	directories = next(os.walk('orca'))[1]
+	for directory in directories:
+		name = directory
+		if 'PbCl6' not in name or 'mp2' not in name: continue
+		if not os.path.isfile('orca/'+name+'/'+name+'.orca.engrad'): continue
+		if not os.path.isfile('orca/'+name+'/system.cml'): continue
+		try:
+			atoms, energy = orca.engrad_read('orca/'+name+'/'+name+'.orca.engrad', pos='Ang')
+		except IndexError:
+			continue
+		if not name.endswith('_ma'): continue
+		#print name
+		old_name = name
+		name = old_name + '2' # From TZ to QZ
+		orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ ma-def2-QZVPP ECP{def2-SD} AutoAux TIGHTSCF Grid5 FinalGrid6 SlowConv', queue='batch', grad=True, previous=old_name, extra_section='%scf SOSCFStart 0.00003 end', charge_and_multiplicity='-4 1')
+		atoms = orca.read(old_name).atoms
+		for a in atoms: #labels for cml file
+			if a.element=='Pb': a.label='907'
+			if a.element=='Cl': a.label='344'
+		files.write_cml(atoms, name='orca/'+name+'/system.cml')
+
+def PbCl6_bigger_bigger_basis_more_memory():
+	directories = next(os.walk('orca'))[1]
+	for directory in directories:
+		name = directory
+		if not name.endswith('_ma2'): continue
+		if not os.path.exists('orca/'+name+'/'+name+'.orca.gbw'): continue
+		#print name
+		old_name = name
+		name = old_name[:-1] + '3' # more memory
+		if os.path.exists('orca/'+name): continue
+		orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ ma-def2-QZVPP ECP{def2-SD} AutoAux TIGHTSCF Grid5 FinalGrid6 SlowConv', queue='batch', grad=True, previous=old_name, extra_section='%scf SOSCFStart 0.00003 end', charge_and_multiplicity='-4 1', mem=500)
+		atoms = orca.read(old_name[:-1]).atoms
+		for a in atoms: #labels for cml file
+			if a.element=='Pb': a.label='907'
+			if a.element=='Cl': a.label='344'
+		files.write_cml(atoms, name='orca/'+name+'/system.cml')
+
+def compare_TZ_QZ_PbCl6_anion():
+	directories = next(os.walk('orca'))[1]
+	jobs = []
+	for directory in directories:
+		name = directory
+		if name.endswith('_ma'):
+			try:
+				ma = orca.read(name)
+				ma3 = orca.read(name+'3')
+				jobs.append( (ma3.energy,ma.energy) )
+			except:
+				print name, 'failed'
+	jobs.sort()
+	for j in jobs:
+		e_qz, e_tz = j[0]-jobs[0][0], j[1]-jobs[0][1]
+		print e_qz*1000, e_tz*1000
+	
+def opt_unit_cell():
+	def initial():
+		atoms = utils.Molecule('molecules/PbMACl3', check_charges=False).atoms
+		orca.job('PbMACl3_opt', '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} Grid3 FinalGrid5 Opt LooseOpt', atoms, queue=None)
+	orca.job('PbMACl3_opt2', '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} Grid3 FinalGrid5 Opt LooseOpt', queue=None, previous='PbMACl3_opt', extra_section='%geom Constraints '+(' '.join(['{C %d C}'%i for i in range(1,9)]))+' end end')
+
+def mod_unit_cell():
+	atoms = orca.read('PbMACl3_opt').atoms
+	for i in range(10,15):
+		for a in atoms[8:]:
+			a.x = random.gauss(a.x, (i+1)*0.1)
+		orca.job('PbMACl3_sp_%d'%i, '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} Grid3 FinalGrid5 SP', atoms, queue=None, previous='PbMACl3_opt').wait()
+
+def mp2_unit_cell():
+	for i in range(15):
+		#orca.job('PbMACl3_mp2_%d'%i, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv', queue='batch', grad=True, previous='PbMACl3_sp_%d'%i)
+		system = utils.Molecule('molecules/PbMACl3', check_charges=False)
+		atoms = orca.read('PbMACl3_sp_%d'%i).atoms
+		for a,b in zip(system.atoms,atoms):
+			a.x,a.y,a.z = b.x,b.y,b.z
+		files.write_cml(system, 'orca/PbMACl3_mp2_%d/system.cml'%i)
+
+mp2_unit_cell()
 
