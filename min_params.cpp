@@ -473,16 +473,16 @@ double MinParams::NLopt_target_function(unsigned params_count, const double *par
   bigint ntimestep;
   ntimestep = ++update->ntimestep;
   niter++;
+  neval++;
   
   unpack_params(params_current); //put parameters into LAMMPS objects
 
+  modify->addstep_compute(update->ntimestep);
   ecurrent = energy_force(0);
-  neval++;
+  compute_pe->compute_peratom(); //sort of a hack
+  
 
-
-  update->eflag_atom = update->ntimestep; //needed to avoid error message. TODO: make this less of a hack. 
-  compute_pe->compute_peratom(); //also sort of a hack
-
+  //printf("force->pair->eatom[0] = %g\n", force->pair->eatom[0] );
 
   if(best_error<0) {
     best_error = calculate_error();
@@ -491,7 +491,7 @@ double MinParams::NLopt_target_function(unsigned params_count, const double *par
     write_tersoff_file();
   }
   double new_error = calculate_error();
-  //printf("%f %f\n", best_error, new_error);
+  //printf("%f %f %f\n", best_error, new_error, ecurrent);
   if(new_error < best_error) {
     best_error = new_error;
     ready_to_write_file = 1;
