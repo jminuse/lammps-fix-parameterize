@@ -49,12 +49,17 @@ Getting started:
 		git fetch
 		
 		git checkout -t origin/master
+
+		git checkout may give the error "Untracked working tree file 'XXXX' would be overwritten by merge." In this case, remove this file (rm XXXX) and repeat the command "git checkout -t origin/master" until you get the message "Branch master set up to track remote branch master from origin."
 		
 		
 When you start work:
 git pull
 
 To save changes:
+
 git add -u
+
 git commit -m "Comment about the changes"
+
 git push

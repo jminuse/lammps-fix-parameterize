@@ -7,3 +7,9 @@ rsq = pow( pow(rsq,N/2) + pow(cut_inner[itype][jtype],N), 2/N); //modified to in
 Making fix parameterize out of fix nve
 FixNVE => FixParameterize
 
+Fixes can't easily get energy: try using a min_style instead
+Created min_params.cpp and min_params.h
+Added "virtual" to "virtual void modify_params(int, char **);" in min.h
+
+coul/cut and coul/dsf slightly different but not terribly. alpha=0.2-0.25 recommended by Fennel. 
+min_style params matches coul/dsf accurately if given same parameters via LAMMPS, but vector input does not match, either for charges or LJ/sigma. Vectors themselves seem to be fine - must be unpack_params. 

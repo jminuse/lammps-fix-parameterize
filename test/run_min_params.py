@@ -1,8 +1,10 @@
 from merlin import *
 import shutil
+import hashlib
 
 run_name = sys.argv[1] if len(sys.argv)>1 else 'test'
-random_seed = sys.argv[2] if len(sys.argv)>2 else '1'
+optimization_method = sys.argv[2] if len(sys.argv)>2 else 'SBPLX'
+random_seed = int(hashlib.md5(run_name).hexdigest(), 16)%(2**16)
 
 I_ = 66
 Cl_ = 21
@@ -17,30 +19,39 @@ Cl = 344
 extra = {
 	(H_, I_): (100.0, 2.1), 
 	(N_, H_, I_): (10.0, 180.0), 
-	Pb: utils.Struct(index=Pb, index2=Pb_, element_name='Pb', element=82, mass=207.2, charge=0.4, vdw_e=0.1, vdw_r=3.0),
-	I: utils.Struct(index=I, index2=I_, element_name='I', element=53, mass=126.9, charge=-0.2, vdw_e=0.1, vdw_r=2.5),
-	Cl: utils.Struct(index=I, index2=Cl_, element_name='Cl', element=17, mass=35.435, charge=-0.2, vdw_e=0.1, vdw_r=2.0),
+	Pb: utils.Struct(index=Pb, index2=Pb_, element_name='Pb', element=82, mass=207.2, charge=0.4, vdw_e=10.1, vdw_r=3.0),
+	I: utils.Struct(index=I, index2=I_, element_name='I', element=53, mass=126.9, charge=-0.2, vdw_e=10.1, vdw_r=2.5),
+	Cl: utils.Struct(index=I, index2=Cl_, element_name='Cl', element=17, mass=35.435, charge=-0.2, vdw_e=10.1, vdw_r=2.0),
 }
 
-system = utils.System(box_size=[1e3, 1e3, 1e3], name=run_name)
+system = utils.System(box_size=[1e3, 50, 50], name=run_name)
 
 systems_by_composition = {}
 
 for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 	directories = next(os.walk(outer+'orca'))[1]
 	for directory in directories:
-		if not os.path.isfile(outer+'orca/'+directory+'/'+directory+'.orca.engrad'): continue
-		atoms, energy = orca.engrad_read(outer+'orca/'+directory+'/'+directory+'.orca.engrad')
-		if len(atoms)>2: continue
-		with_bonds = utils.Molecule(outer+'orca/'+directory+'/system.cml', extra_parameters=extra, check_charges=False)
+		name = directory
+		if not os.path.isfile(outer+'orca/'+name+'/'+name+'.orca.engrad'): continue
+		try:
+			atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad', pos='Ang')
+		except IndexError:
+			continue
+		#if name not in ['PbCl6_-4_sp2_%d' % i for i in range(12)]:
+		if len(atoms)>7 or 'mp2' not in name or 'qz' in name or len(atoms)==5: continue
+		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)
 		for a,b in zip(atoms,with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
 			b.fx, b.fy, b.fz = a.fx*convert, a.fy*convert, a.fz*convert
+			if utils.dist(a,b)>1e-4:
+				raise Exception('Atoms too different:', (a.x,a.y,a.z), (b.x,b.y,b.z))
 		with_bonds.energy = energy
 		composition = ' '.join(sorted([a.element for a in atoms]))
 		if composition not in systems_by_composition:
 			systems_by_composition[composition] = []
 		systems_by_composition[composition].append(with_bonds)
+
+xyz_atoms = []
 
 for composition in systems_by_composition: #within each type of system, lowest energy must be first and equal to 0.0
 	systems_by_composition[composition].sort(key=lambda s:s.energy)
@@ -48,6 +59,9 @@ for composition in systems_by_composition: #within each type of system, lowest e
 	for s in systems_by_composition[composition]:
 		s.energy -= baseline_energy
 		s.energy *= 627.5 #Convert Hartree to kcal/mol
+		#todo: add energy cutoff, e.g. 1000 kcal/mol?
+		print composition, s.energy #for testing purposes
+		xyz_atoms.append(s.atoms) #for testing purposes
 		system.add(s, len(system.molecules)*1000.0)
 
 system.box_size[0] = len(system.molecules)*1000.0*2+200.0
@@ -55,6 +69,9 @@ count = 0
 for m in system.molecules:
 	files.write_xyz(m.atoms,str(count))
 	count += 1
+
+files.write_xyz(xyz_atoms, 'states')
+#exit()
 
 os.chdir('lammps')
 files.write_lammps_data(system)
@@ -64,7 +81,7 @@ files.write_lammps_data(system)
 #	f.write(str(t)+' ')
 #f.close()
 
-shutil.copy('input.tersoff', system.name+'.tersoff')
+shutil.copy('input.tersoff', system.name+'_input.tersoff')
 shutil.copy('upper_bounds.tersoff', system.name+'_upper.tersoff')
 shutil.copy('lower_bounds.tersoff', system.name+'_lower.tersoff')
 
@@ -81,16 +98,16 @@ f.close()
 
 commands = ('''units real
 atom_style full
-pair_style hybrid/overlay lj/cut/coul/inout 0.0001 3 15 tersoff
+pair_style hybrid/overlay lj/cut/coul/inout 0.2 3.5 15 tersoff
 bond_style harmonic
 angle_style harmonic
 dihedral_style opls
 special_bonds lj/coul 0.0 0.0 0.5
 
-boundary p p p
+boundary f f f
 read_data	'''+system.name+'''.data
 
-pair_coeff * * lj/cut/coul/inout 0.0 1.0 0
+pair_coeff * * lj/cut/coul/inout 0.0 1.0 3.5
 ''').splitlines()
 lmp = utils.Struct()
 lmp.file = open(system.name+'.in', 'w')
@@ -100,13 +117,8 @@ lmp.command = writeline
 for line in commands:
 	lmp.command(line)
 
-#run LAMMPS
-lmp.command('pair_coeff * * tersoff '+system.name+'.tersoff Pb Cl '+(' NULL'*(len(system.atom_types)-2)) )
+lmp.command('pair_coeff * * tersoff '+system.name+'_input.tersoff Pb Cl '+(' NULL'*(len(system.atom_types)-2)) )
 
-#for t in system.atom_types:
-#	if hasattr(t,'vdw_e'):
-#		lmp.command('set type %d charge %f' % (t.lammps_type, t.charge))
-#		lmp.command('pair_coeff %d * lj/cut/coul/inout %f	%f' % (t.lammps_type, t.vdw_e, t.vdw_r) )
 for t in system.bond_types:
 	lmp.command('bond_coeff %d	%f %f' % (t.lammps_type, t.e, t.r) )
 for t in system.angle_types:
@@ -116,16 +128,14 @@ for t in system.dihedral_types:
 
 commands = '''
 compute atom_pe all pe/atom
-thermo 0
+compute sum_pe all reduce sum c_atom_pe
+thermo_style custom c_sum_pe
+#thermo 1
 neigh_modify once yes
 
-compute sum_pe all reduce sum c_atom_pe #pile of kludges to make compute pe/atom actually run
-fix average all ave/time 1 1000 1000 c_sum_pe #pile of kludges to make compute pe/atom actually run
-thermo_style custom f_average #pile of kludges to make compute pe/atom actually run
-#thermo 1000
-
-fix params all parameterize '''+system.name+'''_forces.txt  '''+system.name+'''_energies.txt  '''+system.name+'''_upper.tersoff '''+system.name+'''_lower.tersoff '''+system.name+'''_best.tersoff '''+random_seed+'''
-run 100000000
+min_style params
+min_modify '''+run_name+''' '''+optimization_method+''' '''+str(random_seed)+'''
+minimize 0.01 0.01 1728000000 1728000000 #with 224 atoms, does 2e4 steps/second. One day = 1728000000, 40% of 2^32. 
 '''
 for line in commands.splitlines():
 	lmp.command(line)
