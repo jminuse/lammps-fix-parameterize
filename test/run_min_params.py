@@ -1,6 +1,5 @@
 from merlin import *
-import shutil
-import hashlib
+import shutil, hashlib, re
 
 run_name = sys.argv[1] if len(sys.argv)>1 else 'test'
 optimization_method = sys.argv[2] if len(sys.argv)>2 else 'SBPLX'
@@ -33,12 +32,15 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 	for directory in directories:
 		name = directory
 		if not os.path.isfile(outer+'orca/'+name+'/'+name+'.orca.engrad'): continue
+		if not os.path.isfile(outer+'orca/'+name+'/system.cml'): continue
 		try:
 			atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad', pos='Ang')
 		except IndexError:
 			continue
-		#if name not in ['PbCl6_-4_sp2_%d' % i for i in range(12)]:
-		if len(atoms)>7 or 'mp2' not in name or 'qz' in name or len(atoms)==5: continue
+		if 'PbMACl3_mp2_' not in name: continue
+		#	if len(atoms)>7 or 'mp2' not in name or 'qz' in name or len(atoms)==5: continue
+		#if '-4' in name and not name.endswith('ma3'): continue # strong anion without augmented basis
+		#if 'PbCl6_' in name and not ('_ma3' in name and '_opt_' in name): continue
 		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)
 		for a,b in zip(atoms,with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
@@ -46,6 +48,7 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 			if utils.dist(a,b)>1e-4:
 				raise Exception('Atoms too different:', (a.x,a.y,a.z), (b.x,b.y,b.z))
 		with_bonds.energy = energy
+		with_bonds.name = name
 		composition = ' '.join(sorted([a.element for a in atoms]))
 		if composition not in systems_by_composition:
 			systems_by_composition[composition] = []
@@ -59,8 +62,8 @@ for composition in systems_by_composition: #within each type of system, lowest e
 	for s in systems_by_composition[composition]:
 		s.energy -= baseline_energy
 		s.energy *= 627.5 #Convert Hartree to kcal/mol
-		#todo: add energy cutoff, e.g. 1000 kcal/mol?
-		print composition, s.energy #for testing purposes
+		if s.energy > 500.0: continue #don't use high-energy systems, because these will not likely be sampled in MD
+		print composition, s.name, s.energy #for testing purposes
 		xyz_atoms.append(s.atoms) #for testing purposes
 		system.add(s, len(system.molecules)*1000.0)
 
@@ -75,11 +78,6 @@ files.write_xyz(xyz_atoms, 'states')
 
 os.chdir('lammps')
 files.write_lammps_data(system)
-
-#f = open('test_log.txt','w')
-#for t in system.atom_types:
-#	f.write(str(t)+' ')
-#f.close()
 
 shutil.copy('input.tersoff', system.name+'_input.tersoff')
 shutil.copy('upper_bounds.tersoff', system.name+'_upper.tersoff')
@@ -106,9 +104,35 @@ special_bonds lj/coul 0.0 0.0 0.5
 
 boundary f f f
 read_data	'''+system.name+'''.data
-
-pair_coeff * * lj/cut/coul/inout 0.0 1.0 3.5
 ''').splitlines()
+
+
+for line in open(system.name+'_input.tersoff'):
+	if line.startswith('# Charges:'): charges = line.split()[2:] #assumes there are 2 tersoff types
+	if line.startswith('# LJ-sigma:'): lj_sigma = line.split()[2:]
+	if line.startswith('# LJ-epsilon:'): lj_epsilon = line.split()[2:]
+	
+tersoff_cutoffs = re.findall('\n     +\S+ +\S+ +\S+ +\S+ +(\S+)', open(system.name+'_input.tersoff').read())
+inner_cutoffs = [float(tersoff_cutoffs[0]), float(tersoff_cutoffs[-1])] #assumes there are 2 tersoff types
+
+pb_type = 0
+cl_type = 1
+
+for i in range(len(system.atom_types)):
+	for j in range(i, len(system.atom_types)):
+		if i>=len(charges) or j>=len(charges):
+			if i==pb_type:
+				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5-0.0) )
+			elif i==cl_type:
+				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5+0.0) )
+			else:
+				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5) )
+		else:
+			commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f %f' % (i+1, j+1, (float(lj_epsilon[i])*float(lj_epsilon[j]))**0.5, (float(lj_sigma[i])*float(lj_sigma[j]))**0.5, (inner_cutoffs[i]*inner_cutoffs[j])**0.5) )
+			commands.append('set type %d charge %f' % (i+1, float(charges[i])) )
+
+
+
 lmp = utils.Struct()
 lmp.file = open(system.name+'.in', 'w')
 def writeline(line):

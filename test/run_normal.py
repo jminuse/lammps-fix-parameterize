@@ -28,7 +28,7 @@ acetone = utils.Molecule('molecules/acetone')
 PbCl2 = utils.Molecule('molecules/PbCl2', extra_parameters=extra, check_charges=False)
 MACl = utils.Molecule('molecules/MACl', extra_parameters=extra, check_charges=False)
 
-if 1:
+if 0:
 	PbCl6_neg4 = utils.Molecule('molecules/PbCl6_4-', extra_parameters=extra, check_charges=False)
 	system.add(PbCl6_neg4)
 elif 0: #solvent+solute cluster
@@ -51,12 +51,15 @@ elif 0: #MACl+PbCl2
 		for yi in range(3):
 			system.add(MACl, (xi-0.5)*10, (yi-0.5)*10)
 	#system.add(PbCl2, 0, 0, 5)
-elif 0: #perovskite cubic structure
+elif 1: #perovskite cubic structure
 	PbMACl3 = utils.Molecule('molecules/PbMACl3', extra_parameters=extra, check_charges=False)
-	for xi in range(5):
-		for yi in range(5):
-			for zi in range(5):
-				x, y, z = (xi-0.5)*6, (yi-0.5)*6, (zi-0.5)*6
+	L = 6.6
+	N = 1
+	system.box_size=[N*L, N*L, N*L]
+	for xi in range(N):
+		for yi in range(N):
+			for zi in range(N):
+				x, y, z = (xi-0.5)*L, (yi-0.5)*L, (zi-0.5)*L
 				system.add(PbMACl3, x, y, z)
 else: #packed, solvated system
 	files.packmol(system, (DMSO,acetone,PbCl2), (5,5,1), 1.5, random_seed)
@@ -89,10 +92,6 @@ for line in open(system.name+'_input.tersoff'):
 tersoff_cutoffs = re.findall('\n     +\S+ +\S+ +\S+ +\S+ +(\S+)', open(system.name+'_input.tersoff').read())
 inner_cutoffs = [float(tersoff_cutoffs[0]), float(tersoff_cutoffs[-1])] #assumes there are 2 tersoff types
 
-try:
-	sulfur_type = [i for i,t in enumerate(system.atom_types) if t.element==16][0]
-except IndexError:
-	pass
 pb_type = 0
 cl_type = 1
 
@@ -100,14 +99,14 @@ for i in range(len(system.atom_types)):
 	for j in range(i, len(system.atom_types)):
 		if i>=len(charges) or j>=len(charges):
 			if i==pb_type:
-				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5-0.5) )
+				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5-0.0) )
 			elif i==cl_type:
-				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5+0.5) )
+				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5+0.0) )
 			else:
 				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5) )
 		else:
 			commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f %f' % (i+1, j+1, (float(lj_epsilon[i])*float(lj_epsilon[j]))**0.5, (float(lj_sigma[i])*float(lj_sigma[j]))**0.5, (inner_cutoffs[i]*inner_cutoffs[j])**0.5) )
-			commands.append('set type %d charge %f' % (i+1, float(charges[i])) ) #todo: set inner cutoff dynamically from Tersoff file
+			commands.append('set type %d charge %f' % (i+1, float(charges[i])) )
 
 lmp = utils.Struct()
 lmp.file = open(system.name+'.in', 'w')
@@ -127,6 +126,7 @@ for t in system.dihedral_types:
 	lmp.command('dihedral_coeff %d	%f %f %f %f' % ((t.lammps_type,)+t.e))
 
 commands = '''
+neigh_modify every 1 check yes delay 0
 dump	1 all xyz 100 '''+system.name+'''.xyz
 thermo_style custom step temp epair emol vol
 thermo 1000

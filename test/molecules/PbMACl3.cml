@@ -9,9 +9,9 @@
   <atom id="a7" elementType="H" label="85" x3="2.773683" y3="1.997376" z3="1.429904"/>
   <atom id="a8" elementType="H" label="85" x3="1.417062" y3="3.106313" z3="1.363389"/>
   <atom id="a9" elementType="Pb" label="907" x3="0.000000" y3="0.000000" z3="0.000000"/>
-  <atom id="a10" elementType="Cl" label="344" x3="3.000000" y3="0.000000" z3="0.000000"/>
-  <atom id="a11" elementType="Cl" label="344" x3="0.000000" y3="3.000000" z3="0.000000"/>
-  <atom id="a12" elementType="Cl" label="344" x3="0.000000" y3="0.000000" z3="3.000000"/>
+  <atom id="a10" elementType="Cl" label="344" x3="3.300000" y3="0.000000" z3="0.000000"/>
+  <atom id="a11" elementType="Cl" label="344" x3="0.000000" y3="3.300000" z3="0.000000"/>
+  <atom id="a12" elementType="Cl" label="344" x3="0.000000" y3="0.000000" z3="3.300000"/>
  </atomArray>
  <bondArray>
   <bond atomRefs2="a1 a2" order="1"/>
