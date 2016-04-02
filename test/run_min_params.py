@@ -136,8 +136,6 @@ for i in range(len(system.atom_types)):
 			commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f %f' % (i+1, j+1, (float(lj_epsilon[i])*float(lj_epsilon[j]))**0.5, (float(lj_sigma[i])*float(lj_sigma[j]))**0.5, (inner_cutoffs[i]*inner_cutoffs[j])**0.5) )
 			commands.append('set type %d charge %f' % (i+1, float(charges[i])) )
 
-
-
 lmp = utils.Struct()
 lmp.file = open(system.name+'.in', 'w')
 def writeline(line):
@@ -158,7 +156,7 @@ for t in system.dihedral_types:
 commands = '''
 compute atom_pe all pe/atom
 compute sum_pe all reduce sum c_atom_pe
-thermo_style custom c_sum_pe
+#thermo_style custom c_sum_pe
 #thermo 1
 neigh_modify once yes
 
