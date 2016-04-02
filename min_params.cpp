@@ -477,7 +477,6 @@ double MinParams::NLopt_target_function(unsigned params_count, const double *par
   
   unpack_params(params_current); //put parameters into LAMMPS objects
 
-  //modify->addstep_compute(update->ntimestep);
   modify->addstep_compute_all(update->ntimestep);
   ecurrent = energy_force(0);
   compute_pe->compute_peratom(); //sort of a hack
