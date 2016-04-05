@@ -401,5 +401,64 @@ def mp2_unit_cell():
 			a.x,a.y,a.z = b.x,b.y,b.z
 		files.write_cml(system, 'orca/PbMACl3_mp2_%d/system.cml'%i)
 
-mp2_unit_cell()
+def blaire_dimer_jobs():
+	d = '/fs/home/bas348/perovskites/xyz/'
+	names = ['2pbcl3ma_p', '2pbcl3ma', '2pbcl3ma_4dmso_p', '2pbcl3ma_3dmso_p', '2pbcl3ma_2dmso_p', '2pbcl3ma_1dmso_p', '2pbcl3ma_4dmso', '2pbcl3ma_3dmso', '2pbcl3ma_3dmso', '2pbcl3ma_2dmso', '2pbcl3ma_1dmso']
+	for name in names:
+		name = '2pbcl3ma_1dmso'
+		atoms = files.read_xyz(d+name+'.xyz')
+		#orca.job(name+'_opt', '! Opt B97-D3 def2-TZVP GCP(DFT/TZ) ECP{def2-TZVP} COSMO', atoms, queue='batch', extra_section='%cosmo  SMD true  solvent "DMSO"  end')
+		
+		
+		extra_basis = '%basis\n'
+		elements = dict([(a.element,True) for a in atoms]).keys()
+		for e in elements:
+			if e=='Pb':
+				extra_basis += 'NewECP '+e+' "def2-SD" "def2-TZVP" end NewAuxGTO '+e+' "def2-TZVP/J" end\n'
+			elif e=='S':
+				extra_basis += 'newGTO '+e+' "def2-TZVP" end NewAuxGTO '+e+' "def2-TZVP/J" end\n'
+			else:
+				extra_basis += 'newGTO '+e+' "def2-SVP" end NewAuxGTO '+e+' "def2-SVP/J" end\n'
+		extra_basis += 'end'
+		
+
+		orca.job(name+'_opt_dz', '! Opt B97-D3 def2-SVP ECP{def2-TZVP} COSMO printbasis', atoms, queue=None, extra_section='%cosmo  SMD true  solvent "DMSO"  end '+extra_basis).wait()
+		exit()
+
+def read_ssh():
+	os.system("ssh vesuvius 'cd /tmp/icse_1465927.1; tail *.out;'")
+
+def new_dimer_jobs(): #apart energy = -6105.575540556, joined energy = -6105.570657715
+	names = ['2pbcl3ma_apart_5dmso', '2pbcl3ma_joined_5dmso', '2pbcl3ma_joined_5dmso_2']
+	for name in names:
+		atoms = files.read_xyz('molecules/'+name+'.xyz')
+		
+		for i in range(3):
+			for a in atoms:
+				for b in atoms:
+					if a is not b:
+						if utils.dist(a,b)<1e-4:
+							atoms.remove(a)
+							continue
+		
+		extra_basis = '%basis\n'
+		elements = dict([(a.element,True) for a in atoms]).keys()
+		for e in elements:
+			if e=='Pb':
+				extra_basis += 'NewECP '+e+' "def2-SD" "def2-TZVP" end NewAuxGTO '+e+' "def2-TZVP/J" end\n'
+			elif e=='S':
+				extra_basis += 'newGTO '+e+' "def2-TZVP" end NewAuxGTO '+e+' "def2-TZVP/J" end\n'
+			else:
+				extra_basis += 'newGTO '+e+' "def2-SVP" end NewAuxGTO '+e+' "def2-SVP/J" end\n'
+		extra_basis += 'end'
+		
+		orca.job(name+'_opt_dz', '! Opt B97-D3 def2-SVP ECP{def2-TZVP} COSMO printbasis', atoms, queue='batch', extra_section='%cosmo  SMD true  solvent "DMSO"  end\n'+extra_basis)
+	
+def test_orca_basis_syntax():
+	names = ['2pbcl3ma_apart_5dmso', '2pbcl3ma_joined_5dmso', '2pbcl3ma_joined_5dmso_2']
+	for name in names:
+		atoms = files.read_xyz('molecules/'+name+'.xyz')
+		orca.job(name+'_opt', '! Opt B97-D3 def2-SVP GCP(DFT/TZ) ECP{def2-TZVP} COSMO printbasis', atoms, queue='batch', extra_section='%cosmo  SMD true  solvent "DMSO"  end\n%basis aux auto NewECP Pb "def2-SD" "def2-TZVP" end NewGTO S "def2-TZVP" end end')
+
+
 

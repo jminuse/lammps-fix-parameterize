@@ -15,8 +15,8 @@ I = 838
 Cl = 344
 
 extra = {
-	(H_, I_): (100.0, 2.1), 
-	(N_, H_, I_): (10.0, 180.0),
+	(H_, Cl_): (10.0, 2.17), 
+	(N_, H_, Cl_): (1.0, 180.0), 
 	Pb: utils.Struct(index=Pb, index2=Pb_, element_name='Pb', element=82, mass=207.2, charge=0.4, vdw_e=10.1, vdw_r=3.0),
 	I: utils.Struct(index=I, index2=I_, element_name='I', element=53, mass=126.9, charge=-0.2, vdw_e=10.1, vdw_r=2.5),
 	Cl: utils.Struct(index=I, index2=Cl_, element_name='Cl', element=17, mass=35.435, charge=-0.2, vdw_e=10.1, vdw_r=2.0),
@@ -52,7 +52,7 @@ elif 0: #MACl+PbCl2
 			system.add(MACl, (xi-0.5)*10, (yi-0.5)*10)
 	#system.add(PbCl2, 0, 0, 5)
 elif 1: #perovskite cubic structure
-	PbMACl3 = utils.Molecule('molecules/PbMACl3', extra_parameters=extra, check_charges=False)
+	PbMACl3 = utils.Molecule('molecules/PbMACl3_h_bonded', extra_parameters=extra, check_charges=False)
 	L = 6.6
 	N = 1
 	system.box_size=[N*L, N*L, N*L]
