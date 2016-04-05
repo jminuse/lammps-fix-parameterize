@@ -154,7 +154,7 @@ void MinParams::init()
   int id = modify->find_compute("atom_pe"); //must use this name for the compute!
   if (id < 0) error->all(FLERR,"Minimization could not find pe/atom compute (must be named atom_pe)");
   compute_pe = modify->compute[id];
-  
+
   printf("tersoff nparams = %d\n", tersoff->nparams);
   for(int i=0; i<tersoff->nparams; i++) {
     printf("tersoff elements = %d %d %d, A = %f\n", tersoff->params[i].ielement, tersoff->params[i].jelement, tersoff->params[i].kelement, tersoff->params[i].biga);
@@ -477,7 +477,7 @@ double MinParams::NLopt_target_function(unsigned params_count, const double *par
   
   unpack_params(params_current); //put parameters into LAMMPS objects
 
-  modify->addstep_compute(update->ntimestep);
+  modify->addstep_compute_all(update->ntimestep);
   ecurrent = energy_force(0);
   compute_pe->compute_peratom(); //sort of a hack
   

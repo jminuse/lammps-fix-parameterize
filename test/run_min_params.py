@@ -37,7 +37,7 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 			atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad', pos='Ang')
 		except IndexError:
 			continue
-		#if 'PbMACl3_mp2_' not in name: continue
+		# if 'PbMACl3_mp2_' not in name: continue
 		if len(atoms)>6 or 'mp2' not in name or 'qz' in name or len(atoms)==5: continue
 		#if '-4' in name and not name.endswith('ma3'): continue # strong anion without augmented basis
 		#if 'PbCl6_' in name and not ('_ma3' in name and '_opt_' in name): continue
@@ -67,12 +67,12 @@ for composition in systems_by_composition: #within each type of system, lowest e
 		xyz_atoms.append(s.atoms) #for testing purposes
 		system.add(s, len(system.molecules)*1000.0)
 
-system.box_size[0] = len(system.molecules)*1000.0*2+200.0
+system.xhi = len(system.molecules)*1000.0+100.0
+
 count = 0
 for m in system.molecules:
 	files.write_xyz(m.atoms,str(count))
 	count += 1
-
 files.write_xyz(xyz_atoms, 'states')
 #exit()
 
@@ -136,8 +136,6 @@ for i in range(len(system.atom_types)):
 			commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f %f' % (i+1, j+1, (float(lj_epsilon[i])*float(lj_epsilon[j]))**0.5, (float(lj_sigma[i])*float(lj_sigma[j]))**0.5, (inner_cutoffs[i]*inner_cutoffs[j])**0.5) )
 			commands.append('set type %d charge %f' % (i+1, float(charges[i])) )
 
-
-
 lmp = utils.Struct()
 lmp.file = open(system.name+'.in', 'w')
 def writeline(line):
@@ -158,7 +156,7 @@ for t in system.dihedral_types:
 commands = '''
 compute atom_pe all pe/atom
 compute sum_pe all reduce sum c_atom_pe
-thermo_style custom c_sum_pe
+#thermo_style custom c_sum_pe
 #thermo 1
 neigh_modify once yes
 
