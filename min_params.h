@@ -40,8 +40,8 @@ class MinParams : public Min {
   MinParams(class LAMMPS *);
   ~MinParams() {}
   void init();
-  void setup_style() {}; // unused function
-  void reset_vectors() {}; // unused function
+  void setup_style();
+  void reset_vectors();
   int iterate(int);
   void modify_params(int, char **); // to set run_name, etc
   double NLopt_target_function(unsigned params_count, const double *params); //function which gets evaluated by the NLopt library

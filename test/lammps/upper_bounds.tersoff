@@ -2,7 +2,7 @@
 # Error: 1.55817
 # Charges:       2.1       0
 # LJ-sigma:      6.5     5.5
-# LJ-epsilon:     10      10
+# LJ-epsilon:     20      20
 # i, j, k,       m,        gamma,    lambda3,  c,        d,        costheta0,
 #                n,        beta,     lambda2,  B,        R,        D,        lambda1,  A
 Pb Pb Pb         3         1         3   1000000        10       1.0

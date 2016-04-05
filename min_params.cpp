@@ -555,3 +555,27 @@ void MinParams::run_NLopt() {
   }
 }
 
+/* ---------------------------------------------------------------------- */
+
+void MinParams::setup_style() //needed by Min.cpp
+{
+  double **v = atom->v;
+  int nlocal = atom->nlocal;
+
+  for (int i = 0; i < nlocal; i++)
+    v[i][0] = v[i][1] = v[i][2] = 0.0;
+}
+
+/* ----------------------------------------------------------------------
+   set current vector lengths and pointers
+   called after atoms have migrated
+------------------------------------------------------------------------- */
+
+void MinParams::reset_vectors() //needed by Min.cpp
+{
+  // atomic dof
+
+  nvec = 3 * atom->nlocal;
+  if (nvec) xvec = atom->x[0];
+  if (nvec) fvec = atom->f[0];
+}

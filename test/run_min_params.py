@@ -23,7 +23,7 @@ extra = {
 	Cl: utils.Struct(index=I, index2=Cl_, element_name='Cl', element=17, mass=35.435, charge=-0.2, vdw_e=10.1, vdw_r=2.0),
 }
 
-system = utils.System(box_size=[1e3, 50, 50], name=run_name)
+system = utils.System(box_size=[1e3, 100.0, 100.0], name=run_name)
 
 systems_by_composition = {}
 
@@ -37,8 +37,8 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 			atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad', pos='Ang')
 		except IndexError:
 			continue
-		# if 'PbMACl3_mp2_' not in name: continue
-		if len(atoms)>6 or 'mp2' not in name or 'qz' in name or len(atoms)==5: continue
+		if 'PbMACl3_mp2_' not in name:
+			if len(atoms)>6 or 'mp2' not in name or 'qz' in name or len(atoms)==5: continue
 		#if '-4' in name and not name.endswith('ma3'): continue # strong anion without augmented basis
 		#if 'PbCl6_' in name and not ('_ma3' in name and '_opt_' in name): continue
 		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)

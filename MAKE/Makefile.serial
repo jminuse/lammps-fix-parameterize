@@ -13,7 +13,7 @@ DEPFLAGS =	-M
 
 LINK =		/usr/local/gcc/4.9.2/bin/g++ #or just g++
 LINKFLAGS = -g -Ofast -m64 -static-libgcc -static-libstdc++ -gdwarf-3
-LIB =  -lnlopt -lm #(-lnlopt -lm are for NLopt.)
+LIB =  -lnlopt -lm #(-lnlopt -lm are for NLopt.) -Ofast
 SIZE =		size
 
 ARCHIVE =	ar
