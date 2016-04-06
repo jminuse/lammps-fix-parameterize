@@ -50,7 +50,7 @@ Getting started:
 		
 		git checkout -t origin/master
 
-git checkout may give the error "Untracked working tree file 'FILE_NAME_HERE' would be overwritten by merge."
+"git checkout -t origin/master" may give the error "Untracked working tree file 'FILE_NAME_HERE' would be overwritten by merge."
 
 In this case, the simplest option is to delete the offending file, then repeat
 
@@ -60,7 +60,7 @@ In this case, the simplest option is to delete the offending file, then repeat
 
 until "Untracked working tree file" is replaced by a message like "Branch master set up to track remote branch master from origin."
 
-7.	You're done! Now each time you sit down to work, just update your local copy via:
+You're done! Now each time you sit down to work, just update your local copy via:
 
 		git pull
 
@@ -72,5 +72,5 @@ And when you save your changes:
 
 		git push
 
-This will make your changes appear when other people use "git pull" later.
+This will make your changes appear to others when they use "git pull" later.
 
