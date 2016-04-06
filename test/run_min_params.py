@@ -156,8 +156,6 @@ for t in system.dihedral_types:
 commands = '''
 compute atom_pe all pe/atom
 compute sum_pe all reduce sum c_atom_pe
-#thermo_style custom c_sum_pe
-#thermo 1
 neigh_modify once yes
 
 min_style params
