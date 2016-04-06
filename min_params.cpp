@@ -138,10 +138,9 @@ void MinParams::init()
   tersoff_bounds_args[0] = "*";
   tersoff_bounds_args[1] = "*";
   tersoff_bounds_args[2] = upper_bounds_filename.c_str();
-  tersoff_bounds_args[3] = "Pb";
+  tersoff_bounds_args[3] = "Pb"; //assumes system is PbCl. TODO: must use real elements
   tersoff_bounds_args[4] = "Cl";
   for(int i=5; i<atom->ntypes+3; i++) tersoff_bounds_args[i] = "NULL";
-  //const char *tersoff_bounds_args[] = {"*", "*", upper_bounds_filename.c_str(), "Pb", "Cl"}; //todo: must use real elements
   tersoff_upper_bound->coeff(atom->ntypes+3, (char**)tersoff_bounds_args);
   tersoff_bounds_args[2] = lower_bounds_filename.c_str();
   tersoff_lower_bound->coeff(atom->ntypes+3, (char**)tersoff_bounds_args);
@@ -149,7 +148,7 @@ void MinParams::init()
   //read other upper bounds
   read_params_from_comments(upper_bounds_filename, charges_upper, lj_sigma_upper, lj_epsilon_upper);
   read_params_from_comments(lower_bounds_filename, charges_lower, lj_sigma_lower, lj_epsilon_lower);
-  read_params_from_comments(input_tersoff_filename, charges_current, lj_sigma_current, lj_epsilon_current); //todo: change "input.tersoff" to a user-input variable
+  read_params_from_comments(input_tersoff_filename, charges_current, lj_sigma_current, lj_epsilon_current);
   
   int id = modify->find_compute("atom_pe"); //must use this name for the compute!
   if (id < 0) error->all(FLERR,"Minimization could not find pe/atom compute (must be named atom_pe)");
@@ -199,19 +198,19 @@ void MinParams::read_params_from_comments(std::string filename, std::vector<doub
   std::string lj_epsilon_label = "# LJ-epsilon:";
   while(std::getline(infile, line)) {
     if(line.rfind(charge_label, 0) == 0) {
-      for(int type=0; type < tersoff->nelements; type++) { //assumes Tersoff types are first in list
+      for(int type=0; type < tersoff->nelements; type++) {
         char *token = strtok( (type==0?((char*)line.c_str()+charge_label.size()):NULL), " "); //strtok needs first arg to be NULL on all calls after the first
         charges[type] = force->numeric(FLERR,token);
       }
     }
     if(line.rfind(lj_sigma_label, 0) == 0) {
-      for(int type=0; type < tersoff->nelements; type++) { //assumes Tersoff types are first in list
+      for(int type=0; type < tersoff->nelements; type++) {
         char *token = strtok( (type==0?((char*)line.c_str()+lj_sigma_label.size()):NULL), " "); //strtok needs first arg to be NULL on all calls after the first
         lj_sigma[type] = force->numeric(FLERR,token);
       }
     }
     if(line.rfind(lj_epsilon_label, 0) == 0) {
-      for(int type=0; type < tersoff->nelements; type++) { //assumes Tersoff types are first in list
+      for(int type=0; type < tersoff->nelements; type++) {
         char *token = strtok( (type==0?((char*)line.c_str()+lj_epsilon_label.size()):NULL), " "); //strtok needs first arg to be NULL on all calls after the first
         lj_epsilon[type] = force->numeric(FLERR,token);
       }
@@ -309,15 +308,15 @@ void MinParams::write_tersoff_file() {
   fprintf(output, "# Error metric=%g, Energy error=%.2f%%, Force error=%.2f%%\n", best_error, energy_error*100, force_error*100);
   //output charges on one line, listed by type
   fprintf(output, "# Charges:    ");
-  for(int type=0; type < tersoff->nelements; type++) fprintf(output, " %9.6g ", charges_current[type]); //assumes Tersoff types are first in list
+  for(int i=1; i < atom->ntypes; i++) if(tersoff->map[i]>=0) fprintf(output, " %9.6g ", charges_current[tersoff->map[i]]);
   fprintf(output, "\n");
   //output LJ sigma on one line, listed by type
   fprintf(output, "# LJ-sigma:   ");
-  for(int type=0; type < tersoff->nelements; type++) fprintf(output, " %9.6g ", lj_sigma_current[type]); //assumes Tersoff types are first in list
+  for(int i=1; i < atom->ntypes; i++) if(tersoff->map[i]>=0) fprintf(output, " %9.6g ", lj_sigma_current[tersoff->map[i]]);
   fprintf(output, "\n");
   //output LJ epsilon on one line, listed by type
   fprintf(output, "# LJ-epsilon: ");
-  for(int type=0; type < tersoff->nelements; type++) fprintf(output, " %9.6g ", lj_epsilon_current[type]); //assumes Tersoff types are first in list
+  for(int i=1; i < atom->ntypes; i++) if(tersoff->map[i]>=0) fprintf(output, " %9.6g ", lj_epsilon_current[tersoff->map[i]]);
   fprintf(output, "\n");
   //output legend
   
@@ -363,7 +362,7 @@ void MinParams::pack_params() {
   }
   
   //pack other parameters into a flat array
-  for(int type=0; type < tersoff->nelements; type++) { //assumes Tersoff types are first in list
+  for(int type=0; type < tersoff->nelements; type++) {
     pack_typewise_param(charges_upper, charges_lower, charges_current);
     pack_typewise_param(lj_sigma_upper, lj_sigma_lower, lj_sigma_current);
     pack_typewise_param(lj_epsilon_upper, lj_epsilon_lower, lj_epsilon_current);
@@ -371,40 +370,42 @@ void MinParams::pack_params() {
   
 }
 
-#define unpack_param(X,I) if( tersoff_upper_bound->params[i].X > tersoff_lower_bound->params[i].X ) { tersoff->params[i].X = pp[I]; I++; }
-
-#define unpack_typewise_param(HI,LO,X,I) if( HI[type]>LO[type] ) { X[type] = pp[I]; I++; }
+#define unpack_param(X) if( tersoff_upper_bound->params[i].X > tersoff_lower_bound->params[i].X ) { tersoff->params[i].X = params[param_i]; param_i++; }
 
 #define iff(X) if( !( tersoff_upper_bound->params[index_ijk].X > tersoff_lower_bound->params[index_ijk].X ) )
 
-void MinParams::unpack_params(std::vector<double> pp) {
-  int which = 0;
+void MinParams::unpack_params(std::vector<double> params) {
+  int param_i = 0;
   //unpack Tersoff parameters from the flat array to the LAMMPS object
   for(int i=0; i<tersoff->nparams; i++) {
-    unpack_param(lam1, which);
-    unpack_param(lam2, which);
-    unpack_param(lam3, which);
-    unpack_param(c, which);
-    unpack_param(d, which);
-    unpack_param(h, which);
-    unpack_param(gamma, which);
-    unpack_param(powerm, which);
-    unpack_param(powern, which);
-    unpack_param(beta, which);
-    unpack_param(biga, which);
-    unpack_param(bigb, which);
-    unpack_param(bigd, which);
-    unpack_param(bigr, which);
-    unpack_param(cut, which);
+    unpack_param(lam1);
+    unpack_param(lam2);
+    unpack_param(lam3);
+    unpack_param(c);
+    unpack_param(d);
+    unpack_param(h);
+    unpack_param(gamma);
+    unpack_param(powerm);
+    unpack_param(powern);
+    unpack_param(beta);
+    unpack_param(biga);
+    unpack_param(bigb);
+    unpack_param(bigd);
+    unpack_param(bigr);
+    unpack_param(cut);
   }
   //enforce Tersoff constraints: use mixing rules from https://www.quantumwise.com/documents/manuals/latest/ReferenceManual/index.html/ref.tersoffmixitpotential.html
-  for(int i = 0; i < tersoff->nelements; i++) { //assumes Tersoff elements come first in type list!
-    for(int j = 0; j < tersoff->nelements; j++) {
-      for(int k = 0; k < tersoff->nelements; k++) {
-        int index_iii = tersoff->elem2param[i][i][i];
-        int index_jjj = tersoff->elem2param[j][j][j];
-        int index_ijj = tersoff->elem2param[i][j][j];
-        int index_ijk = tersoff->elem2param[i][j][k];
+  for(int i_type = 1; i_type < atom->ntypes; i_type++) {
+    for(int j_type = 1; j_type < atom->ntypes; j_type++) {
+      for(int k_type = 1; k_type < atom->ntypes; k_type++) {
+        int i_tersoff = tersoff->map[i_type];
+        int j_tersoff = tersoff->map[j_type];
+        int k_tersoff = tersoff->map[k_type];
+        if(i_tersoff<0 || j_tersoff<0 || k_tersoff<0) continue;
+        int index_iii = tersoff->elem2param[i_tersoff][i_tersoff][i_tersoff];
+        int index_jjj = tersoff->elem2param[j_tersoff][j_tersoff][j_tersoff];
+        int index_ijj = tersoff->elem2param[i_tersoff][j_tersoff][j_tersoff];
+        int index_ijk = tersoff->elem2param[i_tersoff][j_tersoff][k_tersoff];
         //pairwise mixing: 
         iff(lam1) tersoff->params[index_ijk].lam1 = 0.5*(tersoff->params[index_iii].lam1 + tersoff->params[index_jjj].lam1);
         iff(lam2) tersoff->params[index_ijk].lam2 = 0.5*(tersoff->params[index_iii].lam2 + tersoff->params[index_jjj].lam2);
@@ -412,7 +413,7 @@ void MinParams::unpack_params(std::vector<double> pp) {
         iff(bigb) tersoff->params[index_ijk].bigb = sqrt(tersoff->params[index_iii].bigb * tersoff->params[index_jjj].bigb);
         iff(bigd) tersoff->params[index_ijk].bigd = sqrt(tersoff->params[index_iii].bigd * tersoff->params[index_jjj].bigd);
         iff(bigr) tersoff->params[index_ijk].bigr = sqrt(tersoff->params[index_iii].bigr * tersoff->params[index_jjj].bigr);
-		lj->cut_inner[i+1][j+1] = tersoff->params[index_ijk].bigr; //copy Tersoff cutoff into pair inout
+		lj->cut_inner[i_type][j_type] = tersoff->params[index_ijk].bigr; //copy Tersoff cutoff into pair inout
         //directly copied parameters
         iff(beta) tersoff->params[index_ijk].beta = tersoff->params[index_iii].beta;
         iff(powern) tersoff->params[index_ijk].powern = tersoff->params[index_iii].powern;
@@ -438,22 +439,28 @@ void MinParams::unpack_params(std::vector<double> pp) {
       tersoff->cutmax = tersoff->params[i].cut;
   }
   //unpack other parameters from the flat array to the LAMMPS object
-  for(int type=0; type < tersoff->nelements; type++) { //assumes Tersoff types are first
-    unpack_typewise_param(charges_upper, charges_lower, charges_current, which);
-    unpack_typewise_param(lj_sigma_upper, lj_sigma_lower, lj_sigma_current, which);
-    unpack_typewise_param(lj_epsilon_upper, lj_epsilon_lower, lj_epsilon_current, which);
+  for(int atom_type=1; atom_type <= tersoff->nelements; atom_type++) {
+    int tersoff_type = tersoff->map[atom_type];
+    if(tersoff_type >= 0) {
+      if( charges_upper[tersoff_type]    > charges_lower[tersoff_type]    ) { charges_current[tersoff_type]    = params[param_i]; param_i++; }
+      if( lj_sigma_upper[tersoff_type]   > lj_sigma_lower[tersoff_type]   ) { lj_sigma_current[tersoff_type]   = params[param_i]; param_i++; }
+      if( lj_epsilon_upper[tersoff_type] > lj_epsilon_lower[tersoff_type] ) { lj_epsilon_current[tersoff_type] = params[param_i]; param_i++; }
+    }
   }
-  //enforce charge constraint: Only charge on type 0 matters, q_1 = -0.5*q_0
+  //enforce charge constraint: Only charge on type 0 matters, Q_1 = -0.5*Q_0. Assumes system is PbCl2.
   charges_current[1] = -0.5*charges_current[0];
   //put new charge on each atom
   for(int a=0; a < atom->natoms; a++) {
     atom->q[a] = charges_current[atom->type[a]-1]; //todo: make sure there are no resulting parameters based on charge that need to be recalculated after changing charge
   }
   //modify LJ parameters
-  for(int type=0; type < tersoff->nelements; type++) { //assumes Tersoff types are first
-    lj->sigma[type+1][type+1] = lj_sigma_current[type]; //lj->sigma and lj->epsilon are 1-indexed
-    lj->epsilon[type+1][type+1] = lj_epsilon_current[type];
-	//lj->cut_inner modified above in Tersoff loop (bigr)
+  for(int atom_type=1; atom_type <= atom->ntypes; atom_type++) {
+    int tersoff_type = tersoff->map[atom_type];
+    if(tersoff_type >= 0) {
+      lj->sigma[atom_type][atom_type] = lj_sigma_current[tersoff_type]; //lj->sigma and lj->epsilon are 1-indexed
+      lj->epsilon[atom_type][atom_type] = lj_epsilon_current[tersoff_type];
+	  //lj->cut_inner modified above in Tersoff loop (bigr)
+	}
   }
   //recalculate resulting parameters
   for(int i=1; i <= atom->ntypes; i++) {

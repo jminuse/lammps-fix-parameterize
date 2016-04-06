@@ -54,7 +54,7 @@ elif 0: #MACl+PbCl2
 elif 1: #perovskite cubic structure
 	PbMACl3 = utils.Molecule('molecules/PbMACl3', extra_parameters=extra, check_charges=False)
 	L = 6.6
-	N = 2
+	N = 1
 	#system.xlo,system.xhi = -N*L*0.5, N*L*0.5
 	#system.ylo,system.yhi = -N*L*0.5, N*L*0.5
 	#system.zlo,system.zhi = -N*L*0.5, N*L*0.5

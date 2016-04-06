@@ -460,5 +460,27 @@ def test_orca_basis_syntax():
 		atoms = files.read_xyz('molecules/'+name+'.xyz')
 		orca.job(name+'_opt', '! Opt B97-D3 def2-SVP GCP(DFT/TZ) ECP{def2-TZVP} COSMO printbasis', atoms, queue='batch', extra_section='%cosmo  SMD true  solvent "DMSO"  end\n%basis aux auto NewECP Pb "def2-SD" "def2-TZVP" end NewGTO S "def2-TZVP" end end')
 
+def unit_cell_md_mp2():
+	states = files.read_xyz('unit_cell_states')[1::5]
+	system = utils.Molecule('molecules/PbMACl3', check_charges=False)
+	for i,atoms in enumerate(states):
+		name = 'PbMACl3_mp2_md_%d'%i
+		if os.path.isfile('orca/'+name+'/'+name+'.orca.engrad'): continue
+		orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6 SlowConv', atoms, queue='batch', grad=True, previous='PbMACl3_mp2_0')
+		#for a,b in zip(system.atoms,atoms):
+		#	a.x,a.y,a.z = b.x,b.y,b.z
+		#files.write_cml(system, name='orca/'+name+'/system.cml')
 
+def test_md_geom():
+	states = files.read_xyz('states')
+	for atoms in states:
+		for a in atoms:
+			for b in atoms:
+				if a.element=='N' and b.element=='H':
+					d = utils.dist(a,b)
+					if d<1.3:
+						print d,
+		print ''
+
+test_md_geom()
 

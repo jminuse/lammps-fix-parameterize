@@ -57,7 +57,7 @@ class PairTersoff : public Pair {
   Param *params;                // parameter set for an I-J-K interaction
   char **elements;              // names of unique elements
   int ***elem2param;            // mapping from element triplets to parameters
-  int *map;                     // mapping from atom types to elements
+  int *map;                     // mapping from atom types to elements. map[i] = which element index the Ith atom type is, -1 if NULL
   double cutmax;                // max cutoff for all elements
   int nelements;                // # of unique elements
   int nparams;                  // # of stored parameter sets
