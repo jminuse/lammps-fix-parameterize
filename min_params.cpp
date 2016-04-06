@@ -138,9 +138,13 @@ void MinParams::init()
   tersoff_bounds_args[0] = "*";
   tersoff_bounds_args[1] = "*";
   tersoff_bounds_args[2] = upper_bounds_filename.c_str();
-  tersoff_bounds_args[3] = "Pb"; //assumes system is PbCl. TODO: must use real elements
-  tersoff_bounds_args[4] = "Cl";
-  for(int i=5; i<atom->ntypes+3; i++) tersoff_bounds_args[i] = "NULL";
+  for(int type=1; type <= atom->ntypes; type++) {
+    int tersoff_type = tersoff->map[type];
+    if(tersoff_type>=0)
+      tersoff_bounds_args[type+2] = tersoff->elements[tersoff_type];
+    else
+      tersoff_bounds_args[type+2] = "NULL";
+  }
   tersoff_upper_bound->coeff(atom->ntypes+3, (char**)tersoff_bounds_args);
   tersoff_bounds_args[2] = lower_bounds_filename.c_str();
   tersoff_lower_bound->coeff(atom->ntypes+3, (char**)tersoff_bounds_args);
@@ -233,7 +237,7 @@ double MinParams::calculate_error()
     double dfy = f[i/3][1] - target_forces[i+1];
     double dfz = f[i/3][2] - target_forces[i+2];
     double target_magnitude = target_forces[i]*target_forces[i] + target_forces[i+1]*target_forces[i+1] + target_forces[i+2]*target_forces[i+2];
-    double small_magnitude = 1e-4;
+    double small_magnitude = //1e-4; kcal/mol/Angstrom
     force_error += (dfx*dfx + dfy*dfy + dfz*dfz) / (target_magnitude+small_magnitude);
   }
   //get current energies

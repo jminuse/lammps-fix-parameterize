@@ -482,5 +482,13 @@ def test_md_geom():
 						print d,
 		print ''
 
-test_md_geom()
+def new_tersoff():
+	elements = ['Pb','Cl','HN']
+	for a in elements:
+		for b in elements:
+			for c in elements:
+				print a,b,c, '''        1         0         0         0         0         0
+                 0         0         0         0         0         0         0         0'''
+
+new_tersoff()
 
