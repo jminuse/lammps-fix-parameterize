@@ -44,22 +44,33 @@ Getting started:
 	
 		git init
 		
-		git remote add origin PATH/TO/REPO	 #get the PATH/TO/REPO from the SSH clone URL on the repository page
+		git remote add origin git@github.com:jminuse/lammps-min-params.git
 		
 		git fetch
 		
 		git checkout -t origin/master
 
-		git checkout may give the error "Untracked working tree file 'XXXX' would be overwritten by merge." In this case, remove this file (rm XXXX) and repeat the command "git checkout -t origin/master" until you get the message "Branch master set up to track remote branch master from origin."
-		
-		
-When you start work:
-git pull
+git checkout may give the error "Untracked working tree file 'FILE_NAME_HERE' would be overwritten by merge."
 
-To save changes:
+In this case, the simplest option is to delete the offending file, then repeat
 
-git add -u
+		rm FILE_NAME_HERE
 
-git commit -m "Comment about the changes"
+		git checkout -t origin/master 
 
-git push
+until "Untracked working tree file" is replaced by a message like "Branch master set up to track remote branch master from origin."
+
+7.	You're done! Now each time you sit down to work, just update your local copy via:
+
+		git pull
+
+And when you save your changes:
+
+		git add -u
+
+		git commit -m "Comment about the changes"
+
+		git push
+
+This will make your changes appear when other people use "git pull" later.
+
