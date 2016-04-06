@@ -25,7 +25,6 @@ PairStyle(lj/cut/coul/inout,PairLJCutCoulInOut)
 namespace LAMMPS_NS {
 
 class PairLJCutCoulInOut : public Pair {
- friend class FixParameterize; //allows FixParameterize to modify protected parameters
  friend class MinParams; //allows MinParams to modify protected parameters
  
  public:
