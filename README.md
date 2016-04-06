@@ -1,4 +1,4 @@
-A LAMMPS fix for parameterizing Tersoff potentials with optional Coulombic and Lennard-Jones forces outside the Tersoff cutoffs. 
+A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lennard-Jones contributions are available for the range outside the Tersoff cutoffs. 
 
 To use, add these files to the LAMMPS src directory and compile. A makefile is provided in MAKE, specialized for the computer systems of the Clancy research group at Cornell. 
 
