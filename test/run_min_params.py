@@ -35,6 +35,7 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 		except IndexError:
 			continue
 		if 'PbMACl3_mp2_' not in name: continue
+		if 'md' in name: continue
 			#if len(atoms)<4 or len(atoms)>6 or len(atoms)==5 or 'mp2' not in name or 'qz' in name: continue
 		#if '-4' in name and not name.endswith('ma3'): continue # strong anion without augmented basis
 		#if 'PbCl6_' in name and not ('_ma3' in name and '_opt_' in name): continue
