@@ -35,7 +35,7 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 		except IndexError:
 			continue
 		if 'PbMACl3_mp2_' not in name: continue
-		#if 'md' in name: continue
+		if 'md' in name: continue
 			#if len(atoms)<4 or len(atoms)>6 or len(atoms)==5 or 'mp2' not in name or 'qz' in name: continue
 		#if '-4' in name and not name.endswith('ma3'): continue # strong anion without augmented basis
 		#if 'PbCl6_' in name and not ('_ma3' in name and '_opt_' in name): continue
@@ -116,22 +116,32 @@ for line in open(system.name+'_input.tersoff'):
 	if line.startswith('# LJ-sigma:'): lj_sigma = [float(x) for x in line.split()[2:]]
 	if line.startswith('# LJ-epsilon:'): lj_epsilon = [float(x) for x in line.split()[2:]]
 
+tersoff_strings = re.findall('\n'+('(\S+) +'*9)[:-2]+' *\n +'+('(\S+) +'*8)[:-2], open(system.name+'_input.tersoff').read())
+inner_cutoffs = {}
+for type_i in tersoff_types:
+	for type_j in tersoff_types:
+		for s in tersoff_strings:
+			types = s[:3]
+			R, D = float(s[13]), float(s[14])
+			if types == (type_i.element_name, type_j.element_name, type_j.element_name):
+				inner_cutoffs[ (type_i,type_j) ] = R+D
+
+#for indices,cutoff in inner_cutoffs.items():
+#	print indices[0].element_name, indices[1].element_name, cutoff
+
 index = 0
 for t in system.atom_types:
 	if t in tersoff_types:
 		t.charge = charges[index]
 		t.vdw_e = lj_epsilon[index]
 		t.vdw_r = lj_sigma[index]
-		t.inner_cutoff = 0.0 #For now these are set by min_style params. 
 		index += 1
-	else:
-		t.inner_cutoff = 0.0
 
 for i in range(len(system.atom_types)):
 	for j in range(i, len(system.atom_types)):
 		type_i = system.atom_types[i]
 		type_j = system.atom_types[j]
-		commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f %f' % (i+1, j+1, (type_i.vdw_e*type_j.vdw_e)**0.5, (type_i.vdw_r*type_j.vdw_r)**0.5, (type_i.inner_cutoff*type_j.inner_cutoff)**0.5) )
+		commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f %f' % (i+1, j+1, (type_i.vdw_e*type_j.vdw_e)**0.5, (type_i.vdw_r*type_j.vdw_r)**0.5, inner_cutoffs[ (i,j) ] if (i,j) in inner_cutoffs else 0.0) )
 	commands.append('set type %d charge %f' % (i+1, type_i.charge) )
 
 lmp = utils.Struct()

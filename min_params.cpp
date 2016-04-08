@@ -476,6 +476,7 @@ void MinParams::unpack_params(std::vector<double> params) {
     if(tersoff->cutmax < tersoff->params[i].cut)
       tersoff->cutmax = tersoff->params[i].cut;
   }
+  //copy Tersoff cutoff into pair inout, if Tersoff cutoff exists. Use ijj. 
   for(int i_type = 1; i_type <= atom->ntypes; i_type++) {
     for(int j_type = 1; j_type <= atom->ntypes; j_type++) {
       int i_tersoff = tersoff->map[i_type];
@@ -483,7 +484,7 @@ void MinParams::unpack_params(std::vector<double> params) {
       if(i_tersoff<0 || j_tersoff<0) continue;
       int index_ijj = tersoff->elem2param[i_tersoff][j_tersoff][j_tersoff];
       if(tersoff->params[index_ijj].cut > 0.0)
-		  lj->cut_inner[i_type][j_type] = tersoff->params[index_ijj].cut; //copy Tersoff cutoff into pair inout, if Tersoff cutoff exists. Use ijj. 
+		  lj->cut_inner[i_type][j_type] = tersoff->params[index_ijj].cut;
     }
   }
   //unpack other parameters from the flat array to the LAMMPS object

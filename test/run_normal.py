@@ -1,8 +1,8 @@
 from merlin import *
-import shutil, re
+import shutil, hashlib, re
 
 run_name = sys.argv[1] if len(sys.argv)>1 else 'test'
-random_seed = sys.argv[2] if len(sys.argv)>2 else '1'
+random_seed = sys.argv[2] if len(sys.argv)>2 else str(int(hashlib.md5(run_name).hexdigest(), 16)%(2**16))
 
 I_ = 66
 Cl_ = 21
@@ -13,13 +13,10 @@ Pb_ = 111
 Pb = 907
 I = 838
 Cl = 344
+HN = 233
 
 extra = {
-	(H_, Cl_): (10.0, 2.17), 
-	(N_, H_, Cl_): (1.0, 180.0), 
 	Pb: utils.Struct(index=Pb, index2=Pb_, element_name='Pb', element=82, mass=207.2, charge=0.4, vdw_e=10.1, vdw_r=3.0),
-	I: utils.Struct(index=I, index2=I_, element_name='I', element=53, mass=126.9, charge=-0.2, vdw_e=10.1, vdw_r=2.5),
-	Cl: utils.Struct(index=I, index2=Cl_, element_name='Cl', element=17, mass=35.435, charge=-0.2, vdw_e=10.1, vdw_r=2.0),
 }
 
 system = utils.System(box_size=[30, 30, 30], name=run_name)
@@ -86,13 +83,25 @@ boundary p p p
 read_data	'''+system.name+'''.data
 ''').splitlines()
 
+tersoff_types = [t for t in system.atom_types if t.index in [Pb,Cl,HN]]
+
 for line in open(system.name+'_input.tersoff'):
-	if line.startswith('# Charges:'): charges = line.split()[2:] #assumes there are 2 tersoff types
-	if line.startswith('# LJ-sigma:'): lj_sigma = line.split()[2:]
-	if line.startswith('# LJ-epsilon:'): lj_epsilon = line.split()[2:]
+	if line.startswith('# Charges:'): charges = [float(x) for x in line.split()[2:]]
+	if line.startswith('# LJ-sigma:'): lj_sigma = [float(x) for x in line.split()[2:]]
+	if line.startswith('# LJ-epsilon:'): lj_epsilon = [float(x) for x in line.split()[2:]]
 	
-tersoff_cutoff_strings = re.findall('\n     +\S+ +\S+ +\S+ +\S+ +(\S+)', open(system.name+'_input.tersoff').read())
-#inner_cutoffs = [D+R for cut in tersoff_cutoff_strings if cut!='0']  #todo: read inner cutoffs from input file
+tersoff_strings = re.findall('\n'+('(\S+) +'*9)[:-2]+' *\n +'+('(\S+) +'*8)[:-2], open(system.name+'_input.tersoff').read())
+inner_cutoffs = {}
+for type_i in tersoff_types:
+	for type_j in tersoff_types:
+		for s in tersoff_strings:
+			types = s[:3]
+			R, D = float(s[13]), float(s[14])
+			if types == (type_i.element_name, type_j.element_name, type_j.element_name):
+				inner_cutoffs[ (type_i,type_j) ] = R+D
+
+#for indices,cutoff in inner_cutoffs.items():
+#	print indices[0].element_name, indices[1].element_name, cutoff
 
 index = 0
 for t in system.atom_types:
@@ -100,16 +109,13 @@ for t in system.atom_types:
 		t.charge = charges[index]
 		t.vdw_e = lj_epsilon[index]
 		t.vdw_r = lj_sigma[index]
-		t.inner_cutoff = inner_cutoffs[index]
 		index += 1
-	else:
-		t.inner_cutoff = 0.0
 
 for i in range(len(system.atom_types)):
 	for j in range(i, len(system.atom_types)):
 		type_i = system.atom_types[i]
 		type_j = system.atom_types[j]
-		commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f %f' % (i+1, j+1, (type_i.vdw_e*type_j.vdw_e)**0.5, (type_i.vdw_r*type_j.vdw_r)**0.5, (type_i.inner_cutoff*type_j.inner_cutoff)**0.5) )
+		commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f %f' % (i+1, j+1, (type_i.vdw_e*type_j.vdw_e)**0.5, (type_i.vdw_r*type_j.vdw_r)**0.5, inner_cutoffs[ (i,j) ] if (i,j) in inner_cutoffs else 0.0) )
 	commands.append('set type %d charge %f' % (i+1, type_i.charge) )
 
 lmp = utils.Struct()
@@ -120,7 +126,7 @@ lmp.command = writeline
 for line in commands:
 	lmp.command(line)
 
-lmp.command('pair_coeff * * tersoff '+system.name+'_input.tersoff Pb Cl '+(' NULL'*(len(system.atom_types)-2)) )
+lmp.command('pair_coeff * * tersoff '+system.name+'_input.tersoff '+(' '.join([ (t.element_name if t in tersoff_types else 'NULL') for t in system.atom_types])))
 
 for t in system.bond_types:
 	lmp.command('bond_coeff %d	%f %f' % (t.lammps_type, t.e, t.r) )
@@ -140,7 +146,7 @@ minimize 0.0 1.0e-8 1000 100000
 #fix motion all npt temp 300.0 300.0 100.0 iso 1.0 1.0 1000.0
 fix motion all nvt temp 400.0 400.0 100.0
 velocity all create 400.0 '''+random_seed+''' rot yes dist gaussian
-timestep 1.0
+timestep 0.5
 run 10000
 '''
 for line in commands.splitlines():
