@@ -54,6 +54,7 @@ MinParams::MinParams(LAMMPS *lmp) : Min(lmp) {}
 
 #define OPT_PRINT_ALL NLOPT_LD_LBFGS //used as code for "PRINT"
 #define OPT_RAND_SBPLX NLOPT_LD_SLSQP //used as code for RAND_SBPLX
+#define OPT_GAUSS_SBPLX NLOPT_LN_PRAXIS //used as code for GAUSS_SBPLX
 
 /* ---------------------------------------------------------------------- */
 
@@ -84,7 +85,9 @@ void MinParams::modify_params(int narg, char **arg)
     algorithm = NLOPT_LN_NELDERMEAD;  
   } else if(optimization_method == "PRINT") { // Print energy and force results at current parameters
     algorithm = OPT_PRINT_ALL;
-  } else if(optimization_method == "RAND_SBPLX") { // Print energy and force results at current parameters
+  } else if(optimization_method == "RAND_SBPLX") { // Generate uniformly distributed random solutions and locally optimize with SBPLX
+    algorithm = OPT_RAND_SBPLX;
+  } else if(optimization_method == "GAUSS_SBPLX") { // Generate Gaussian distributed random solutions near the current best and locally optimize with SBPLX
     algorithm = OPT_RAND_SBPLX;
   } else {
     optimization_method = "SBPLX";  // SBPLX (local, based on Nelder-Mead simplex)
@@ -237,7 +240,7 @@ double MinParams::calculate_error()
     double dfy = f[i/3][1] - target_forces[i+1];
     double dfz = f[i/3][2] - target_forces[i+2];
     double target_magnitude = target_forces[i]*target_forces[i] + target_forces[i+1]*target_forces[i+1] + target_forces[i+2]*target_forces[i+2];
-    double small_magnitude = //1e-4; kcal/mol/Angstrom
+    double small_magnitude = 1e-4; //kcal/mol/Angstrom
     force_error += (dfx*dfx + dfy*dfy + dfz*dfz) / (target_magnitude+small_magnitude);
   }
   //get current energies
@@ -312,15 +315,15 @@ void MinParams::write_tersoff_file() {
   fprintf(output, "# Error metric=%g, Energy error=%.2f%%, Force error=%.2f%%\n", best_error, energy_error*100, force_error*100);
   //output charges on one line, listed by type
   fprintf(output, "# Charges:    ");
-  for(int i=1; i < atom->ntypes; i++) if(tersoff->map[i]>=0) fprintf(output, " %9.6g ", charges_current[tersoff->map[i]]);
+  for(int i=1; i <= atom->ntypes; i++) if(tersoff->map[i]>=0) fprintf(output, " %9.6g ", charges_current[tersoff->map[i]]);
   fprintf(output, "\n");
   //output LJ sigma on one line, listed by type
   fprintf(output, "# LJ-sigma:   ");
-  for(int i=1; i < atom->ntypes; i++) if(tersoff->map[i]>=0) fprintf(output, " %9.6g ", lj_sigma_current[tersoff->map[i]]);
+  for(int i=1; i <= atom->ntypes; i++) if(tersoff->map[i]>=0) fprintf(output, " %9.6g ", lj_sigma_current[tersoff->map[i]]);
   fprintf(output, "\n");
   //output LJ epsilon on one line, listed by type
   fprintf(output, "# LJ-epsilon: ");
-  for(int i=1; i < atom->ntypes; i++) if(tersoff->map[i]>=0) fprintf(output, " %9.6g ", lj_epsilon_current[tersoff->map[i]]);
+  for(int i=1; i <= atom->ntypes; i++) if(tersoff->map[i]>=0) fprintf(output, " %9.6g ", lj_epsilon_current[tersoff->map[i]]);
   fprintf(output, "\n");
   //output legend
   
@@ -399,9 +402,9 @@ void MinParams::unpack_params(std::vector<double> params) {
     unpack_param(cut);
   }
   //enforce Tersoff constraints: use mixing rules from https://www.quantumwise.com/documents/manuals/latest/ReferenceManual/index.html/ref.tersoffmixitpotential.html
-  for(int i_type = 1; i_type < atom->ntypes; i_type++) {
-    for(int j_type = 1; j_type < atom->ntypes; j_type++) {
-      for(int k_type = 1; k_type < atom->ntypes; k_type++) {
+  for(int i_type = 1; i_type <= atom->ntypes; i_type++) {
+    for(int j_type = 1; j_type <= atom->ntypes; j_type++) {
+      for(int k_type = 1; k_type <= atom->ntypes; k_type++) {
         int i_tersoff = tersoff->map[i_type];
         int j_tersoff = tersoff->map[j_type];
         int k_tersoff = tersoff->map[k_type];
@@ -410,27 +413,47 @@ void MinParams::unpack_params(std::vector<double> params) {
         int index_jjj = tersoff->elem2param[j_tersoff][j_tersoff][j_tersoff];
         int index_ijj = tersoff->elem2param[i_tersoff][j_tersoff][j_tersoff];
         int index_ijk = tersoff->elem2param[i_tersoff][j_tersoff][k_tersoff];
-        //pairwise mixing: 
-        iff(lam1) tersoff->params[index_ijk].lam1 = 0.5*(tersoff->params[index_iii].lam1 + tersoff->params[index_jjj].lam1);
-        iff(lam2) tersoff->params[index_ijk].lam2 = 0.5*(tersoff->params[index_iii].lam2 + tersoff->params[index_jjj].lam2);
-        iff(biga) tersoff->params[index_ijk].biga = sqrt(tersoff->params[index_iii].biga * tersoff->params[index_jjj].biga);
-        iff(bigb) tersoff->params[index_ijk].bigb = sqrt(tersoff->params[index_iii].bigb * tersoff->params[index_jjj].bigb);
-        iff(bigd) tersoff->params[index_ijk].bigd = sqrt(tersoff->params[index_iii].bigd * tersoff->params[index_jjj].bigd);
-        iff(bigr) tersoff->params[index_ijk].bigr = sqrt(tersoff->params[index_iii].bigr * tersoff->params[index_jjj].bigr);
-		lj->cut_inner[i_type][j_type] = tersoff->params[index_ijk].bigr; //copy Tersoff cutoff into pair inout
-        //directly copied parameters
-        iff(beta) tersoff->params[index_ijk].beta = tersoff->params[index_iii].beta;
-        iff(powern) tersoff->params[index_ijk].powern = tersoff->params[index_iii].powern;
-        iff(c) tersoff->params[index_ijk].c = tersoff->params[index_iii].c;
-        iff(d) tersoff->params[index_ijk].d = tersoff->params[index_iii].d;
-        iff(h) tersoff->params[index_ijk].h = tersoff->params[index_iii].h;
-        //3-wise:
+
+        if(tersoff->params[index_iii].biga > 0.0) { // mix iii and jjj parameters
+          //pairwise mixing:
+          iff(lam1) tersoff->params[index_ijk].lam1 = 0.5*(tersoff->params[index_iii].lam1 + tersoff->params[index_jjj].lam1);
+          iff(lam2) tersoff->params[index_ijk].lam2 = 0.5*(tersoff->params[index_iii].lam2 + tersoff->params[index_jjj].lam2);
+          iff(biga) tersoff->params[index_ijk].biga = sqrt(tersoff->params[index_iii].biga * tersoff->params[index_jjj].biga);
+          iff(bigb) tersoff->params[index_ijk].bigb = sqrt(tersoff->params[index_iii].bigb * tersoff->params[index_jjj].bigb);
+          iff(bigd) tersoff->params[index_ijk].bigd = sqrt(tersoff->params[index_iii].bigd * tersoff->params[index_jjj].bigd);
+          iff(bigr) tersoff->params[index_ijk].bigr = sqrt(tersoff->params[index_iii].bigr * tersoff->params[index_jjj].bigr);
+          //directly copied parameters:
+          iff(beta) tersoff->params[index_ijk].beta = tersoff->params[index_iii].beta;
+          iff(powern) tersoff->params[index_ijk].powern = tersoff->params[index_iii].powern;
+          iff(c) tersoff->params[index_ijk].c = tersoff->params[index_iii].c;
+          iff(d) tersoff->params[index_ijk].d = tersoff->params[index_iii].d;
+          iff(h) tersoff->params[index_ijk].h = tersoff->params[index_iii].h;
+        }
+        else if(tersoff->params[index_ijj].biga > 0.0) { // use ijj parameters
+          printf("Mixing: %d %d %d = %d %d %d\n", i_tersoff, j_tersoff, k_tersoff, i_tersoff, j_tersoff, j_tersoff);
+          //usually mixed, but here just copied:
+          iff(lam1) tersoff->params[index_ijk].lam1 = tersoff->params[index_ijj].lam1;
+          iff(lam2) tersoff->params[index_ijk].lam2 = tersoff->params[index_ijj].lam2;
+          iff(biga) tersoff->params[index_ijk].biga = tersoff->params[index_ijj].biga;
+          iff(bigb) tersoff->params[index_ijk].bigb = tersoff->params[index_ijj].bigb;
+          iff(bigd) tersoff->params[index_ijk].bigd = tersoff->params[index_ijj].bigd;
+          iff(bigr) tersoff->params[index_ijk].bigr = tersoff->params[index_ijj].bigr;
+          //usually copied from iii, but here copied from ijj:
+          iff(beta) tersoff->params[index_ijk].beta = tersoff->params[index_ijj].beta;
+          iff(powern) tersoff->params[index_ijk].powern = tersoff->params[index_ijj].powern;
+          iff(c) tersoff->params[index_ijk].c = tersoff->params[index_ijj].c;
+          iff(d) tersoff->params[index_ijk].d = tersoff->params[index_ijj].d;
+          iff(h) tersoff->params[index_ijk].h = tersoff->params[index_ijj].h;
+        }
+        //3-wise parameters, always treated as ijj regardless of iii or ijj issues:
         iff(gamma) tersoff->params[index_ijk].gamma = tersoff->params[index_ijj].gamma;
-        iff(lam3) tersoff->params[index_ijk].lam3 = sqrt(tersoff->params[index_iii].lam3*tersoff->params[index_jjj].lam3); //tersoff->params[index_ijj].lam3 ?
+        iff(lam3) tersoff->params[index_ijk].lam3 = tersoff->params[index_ijj].lam3;
         iff(powerm) tersoff->params[index_ijk].powerm = tersoff->params[index_ijj].powerm;
       }
     }
   }
+  puts("Exiting");
+  exit(0);
   //recalculate resulting parameters in Tersoff param objects: cut, cutsq, c1, c2, c3, c4, and cutmax
   for(int i=0; i<tersoff->nparams; i++) {
     tersoff->params[i].cut = tersoff->params[i].bigr + tersoff->params[i].bigd;
@@ -441,6 +464,16 @@ void MinParams::unpack_params(std::vector<double> params) {
     tersoff->params[i].c4 = 1.0/tersoff->params[i].c1;
     if(tersoff->cutmax < tersoff->params[i].cut)
       tersoff->cutmax = tersoff->params[i].cut;
+  }
+  for(int i_type = 1; i_type <= atom->ntypes; i_type++) {
+    for(int j_type = 1; j_type <= atom->ntypes; j_type++) {
+      int i_tersoff = tersoff->map[i_type];
+      int j_tersoff = tersoff->map[j_type];
+      if(i_tersoff<0 || j_tersoff<0) continue;
+      int index_ijj = tersoff->elem2param[i_tersoff][j_tersoff][j_tersoff];
+      if(tersoff->params[index_ijj].cut > 0.0)
+		  lj->cut_inner[i_type][j_type] = tersoff->params[index_ijj].cut; //copy Tersoff cutoff into pair inout, if Tersoff cutoff exists. Use ijj. 
+    }
   }
   //unpack other parameters from the flat array to the LAMMPS object
   for(int atom_type=1; atom_type <= tersoff->nelements; atom_type++) {
@@ -534,19 +567,18 @@ void MinParams::run_NLopt() {
   puts("Running NLopt optimization...");
   
   nlopt_opt opt;
-  if(algorithm==OPT_RAND_SBPLX) {
-    for(unsigned int i=0; i<params_current.size(); i++)
-      params_current[i] = params_lower[i] + random->uniform()*(params_upper[i]-params_lower[i]);
+  if(algorithm==OPT_RAND_SBPLX || algorithm==OPT_GAUSS_SBPLX)
     opt = nlopt_create(NLOPT_LN_SBPLX, params_current.size());
-  }
   else
     opt = nlopt_create(algorithm, params_current.size());
   nlopt_srand(random_seed);
   
   //enforce requirement of NLopt, that guess must be within the bounds
   for(unsigned int i=0; i<params_current.size(); i++) {
-    assert(params_upper[i]>=params_current[i]);
-    assert(params_current[i]>=params_lower[i]);
+    if(params_upper[i]<params_current[i] || params_current[i]<params_lower[i]) {
+      printf("Condition %g>%g>%g violated for param %d\n", params_upper[i], params_current[i], params_lower[i], i);
+      error->all(FLERR,"Should be upper > current > lower");
+    }
   }
   double tolerance = 1e-15;
   nlopt_set_lower_bounds(opt, &params_lower[0]);
@@ -556,8 +588,27 @@ void MinParams::run_NLopt() {
   nlopt_set_min_objective(opt, NLopt_target_function_wrapper, this);
   
   double error; // the minimum objective value upon return
+  int return_code; 
   
-  int return_code = nlopt_optimize(opt, &params_current[0], &error);
+  if(algorithm==OPT_RAND_SBPLX || algorithm==OPT_GAUSS_SBPLX) {
+    while(1) {
+      nlopt_set_maxeval(opt, 100000);
+      for(unsigned int i=0; i<params_current.size(); i++) {
+        if(algorithm==OPT_RAND_SBPLX)
+          params_current[i] = params_lower[i] + random->uniform()*(params_upper[i]-params_lower[i]); //uniform random
+        else {
+          params_current[i] = params_best[i] + random->gaussian()*0.2*(params_upper[i]-params_lower[i]); //Gaussian random, standard deviation = 0.2 (as in DDS algorithm)
+          if(params_upper[i]<params_current[i]) params_current[i] = params_upper[i];
+          if(params_current[i]<params_lower[i]) params_current[i] = params_lower[i];
+        }
+      }
+      return_code = nlopt_optimize(opt, &params_current[0], &error);
+      printf("Return code=%d, error=%g\n", return_code, error);
+    }
+  }
+  else
+    return_code = nlopt_optimize(opt, &params_current[0], &error);
+  
   if(return_code < 0) {
     printf("NLopt failed with code %d\n", return_code);
   }

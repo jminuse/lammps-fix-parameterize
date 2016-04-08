@@ -3,7 +3,7 @@ import shutil, hashlib, re
 
 run_name = sys.argv[1] if len(sys.argv)>1 else 'test'
 optimization_method = sys.argv[2] if len(sys.argv)>2 else 'SBPLX'
-random_seed = int(hashlib.md5(run_name).hexdigest(), 16)%(2**16)
+random_seed = int(sys.argv[3]) if len(sys.argv)>3 else int(hashlib.md5(run_name).hexdigest(), 16)%(2**16)
 
 I_ = 66
 Cl_ = 21
@@ -14,13 +14,10 @@ Pb_ = 111
 Pb = 907
 I = 838
 Cl = 344
+HN = 233
 
 extra = {
-	(H_, Cl_): (10.0, 2.17), 
-	(N_, H_, Cl_): (1.0, 180.0), 
 	Pb: utils.Struct(index=Pb, index2=Pb_, element_name='Pb', element=82, mass=207.2, charge=0.4, vdw_e=10.1, vdw_r=3.0),
-	I: utils.Struct(index=I, index2=I_, element_name='I', element=53, mass=126.9, charge=-0.2, vdw_e=10.1, vdw_r=2.5),
-	Cl: utils.Struct(index=I, index2=Cl_, element_name='Cl', element=17, mass=35.435, charge=-0.2, vdw_e=10.1, vdw_r=2.0),
 }
 
 system = utils.System(box_size=[1e3, 100.0, 100.0], name=run_name)
@@ -111,30 +108,34 @@ boundary f f f
 read_data	'''+system.name+'''.data
 ''').splitlines()
 
+tersoff_types = [t for t in system.atom_types if t.index in [Pb,Cl,HN]]
 
 for line in open(system.name+'_input.tersoff'):
-	if line.startswith('# Charges:'): charges = line.split()[2:] #assumes there are 2 tersoff types
-	if line.startswith('# LJ-sigma:'): lj_sigma = line.split()[2:]
-	if line.startswith('# LJ-epsilon:'): lj_epsilon = line.split()[2:]
-	
-tersoff_cutoffs = re.findall('\n     +\S+ +\S+ +\S+ +\S+ +(\S+)', open(system.name+'_input.tersoff').read())
-inner_cutoffs = [float(tersoff_cutoffs[0]), float(tersoff_cutoffs[-1])] #assumes there are 2 tersoff types
+	if line.startswith('# Charges:'): charges = [float(x) for x in line.split()[2:]]
+	if line.startswith('# LJ-sigma:'): lj_sigma = [float(x) for x in line.split()[2:]]
+	if line.startswith('# LJ-epsilon:'): lj_epsilon = [float(x) for x in line.split()[2:]]
 
-pb_type = 0
-cl_type = 1
+tersoff_cutoff_strings = re.findall('\n     +\S+ +\S+ +\S+ +\S+ +(\S+)', open(system.name+'_input.tersoff').read())
+inner_cutoffs = [0.0 for x in charges]
+#inner_cutoffs = [float(cut) for cut in tersoff_cutoff_strings if cut!='0'] #todo: read inner cutoffs from input file
+
+index = 0
+for t in system.atom_types:
+	if t in tersoff_types:
+		t.charge = charges[index]
+		t.vdw_e = lj_epsilon[index]
+		t.vdw_r = lj_sigma[index]
+		t.inner_cutoff = inner_cutoffs[index]
+		index += 1
+	else:
+		t.inner_cutoff = 0.0
 
 for i in range(len(system.atom_types)):
 	for j in range(i, len(system.atom_types)):
-		if i>=len(charges) or j>=len(charges):
-			if i==pb_type:
-				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5-0.0) )
-			elif i==cl_type:
-				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5+0.0) )
-			else:
-				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5) )
-		else:
-			commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f %f' % (i+1, j+1, (float(lj_epsilon[i])*float(lj_epsilon[j]))**0.5, (float(lj_sigma[i])*float(lj_sigma[j]))**0.5, (inner_cutoffs[i]*inner_cutoffs[j])**0.5) )
-			commands.append('set type %d charge %f' % (i+1, float(charges[i])) )
+		type_i = system.atom_types[i]
+		type_j = system.atom_types[j]
+		commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f %f' % (i+1, j+1, (type_i.vdw_e*type_j.vdw_e)**0.5, (type_i.vdw_r*type_j.vdw_r)**0.5, (type_i.inner_cutoff*type_j.inner_cutoff)**0.5) )
+	commands.append('set type %d charge %f' % (i+1, type_i.charge) )
 
 lmp = utils.Struct()
 lmp.file = open(system.name+'.in', 'w')
@@ -144,7 +145,7 @@ lmp.command = writeline
 for line in commands:
 	lmp.command(line)
 
-lmp.command('pair_coeff * * tersoff '+system.name+'_input.tersoff Pb Cl '+(' NULL'*(len(system.atom_types)-2)) )
+lmp.command('pair_coeff * * tersoff '+system.name+'_input.tersoff '+(' '.join([ (t.element_name if t in tersoff_types else 'NULL') for t in system.atom_types])))
 
 for t in system.bond_types:
 	lmp.command('bond_coeff %d	%f %f' % (t.lammps_type, t.e, t.r) )

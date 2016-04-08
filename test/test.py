@@ -490,5 +490,6 @@ def new_tersoff():
 				print a,b,c, '''        1         0         0         0         0         0
                  0         0         0         0         0         0         0         0'''
 
-new_tersoff()
+def run_min_params():
+	
 
