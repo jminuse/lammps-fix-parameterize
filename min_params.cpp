@@ -438,7 +438,7 @@ void MinParams::unpack_params(std::vector<double> params) {
           iff(powerm) tersoff->params[index_ijk].powerm = tersoff->params[index_ijj].powerm;
         }
         else if(tersoff->params[index_ijj].biga > 0.0 && tersoff->params[index_ikk].biga > 0.0) { // use ijj parameters, possibly mixed with ikk parameters
-          printf("Bonds: %s--%s--%s = mix(%s--%s--%s, %s--%s--%s)  ", element_j, element_i, element_k,    element_j, element_i, element_j,    element_k, element_i, element_k);
+          printf("Bonds: %s--%s--%s = mix(%s--%s--%s, %s--%s--%s)\n", element_j, element_i, element_k,    element_j, element_i, element_j,    element_k, element_i, element_k);
           //usually mixed, but here just copied:
           iff(lam1) tersoff->params[index_ijk].lam1 = 0.5*(tersoff->params[index_ijj].lam1 + tersoff->params[index_ikk].lam1);
           iff(lam2) tersoff->params[index_ijk].lam2 = 0.5*(tersoff->params[index_ijj].lam2 + tersoff->params[index_ikk].lam2);
