@@ -412,6 +412,7 @@ void MinParams::unpack_params(std::vector<double> params) {
         int index_iii = tersoff->elem2param[i_tersoff][i_tersoff][i_tersoff];
         int index_jjj = tersoff->elem2param[j_tersoff][j_tersoff][j_tersoff];
         int index_ijj = tersoff->elem2param[i_tersoff][j_tersoff][j_tersoff];
+        int index_ikk = tersoff->elem2param[i_tersoff][k_tersoff][k_tersoff];
         int index_ijk = tersoff->elem2param[i_tersoff][j_tersoff][k_tersoff];
 
         if(tersoff->params[index_iii].biga > 0.0) { // mix iii and jjj parameters
@@ -429,21 +430,28 @@ void MinParams::unpack_params(std::vector<double> params) {
           iff(d) tersoff->params[index_ijk].d = tersoff->params[index_iii].d;
           iff(h) tersoff->params[index_ijk].h = tersoff->params[index_iii].h;
         }
-        else if(tersoff->params[index_ijj].biga > 0.0) { // use ijj parameters
-          printf("Mixing: %d %d %d = %d %d %d\n", i_tersoff, j_tersoff, k_tersoff, i_tersoff, j_tersoff, j_tersoff);
+        else if(tersoff->params[index_ijj].biga > 0.0 && tersoff->params[index_ikk].biga > 0.0) { // use ijj parameters, possibly mixed with ikk parameters
+          //printf("Mixing: %d %d %d = %d %d %d\n", i_tersoff, j_tersoff, k_tersoff, i_tersoff, j_tersoff, j_tersoff);
+          printf("Mixing: %s %s %s = %s %s %s    ", tersoff->elements[i_tersoff], tersoff->elements[j_tersoff], tersoff->elements[k_tersoff], tersoff->elements[i_tersoff], tersoff->elements[j_tersoff], tersoff->elements[j_tersoff]);
+          printf("Bonds: %s--%s--%s\n", tersoff->elements[j_tersoff], tersoff->elements[i_tersoff], tersoff->elements[k_tersoff]);
           //usually mixed, but here just copied:
-          iff(lam1) tersoff->params[index_ijk].lam1 = tersoff->params[index_ijj].lam1;
-          iff(lam2) tersoff->params[index_ijk].lam2 = tersoff->params[index_ijj].lam2;
-          iff(biga) tersoff->params[index_ijk].biga = tersoff->params[index_ijj].biga;
-          iff(bigb) tersoff->params[index_ijk].bigb = tersoff->params[index_ijj].bigb;
-          iff(bigd) tersoff->params[index_ijk].bigd = tersoff->params[index_ijj].bigd;
-          iff(bigr) tersoff->params[index_ijk].bigr = tersoff->params[index_ijj].bigr;
+          iff(lam1) tersoff->params[index_ijk].lam1 = 0.5*(tersoff->params[index_ijj].lam1 + tersoff->params[index_ikk].lam1);
+          iff(lam2) tersoff->params[index_ijk].lam2 = 0.5*(tersoff->params[index_ijj].lam2 + tersoff->params[index_ikk].lam2);
+          iff(biga) tersoff->params[index_ijk].biga = sqrt(tersoff->params[index_ijj].biga * tersoff->params[index_ikk].biga);
+          iff(bigb) tersoff->params[index_ijk].bigb = sqrt(tersoff->params[index_ijj].bigb * tersoff->params[index_ikk].bigb);
+          iff(bigd) tersoff->params[index_ijk].bigd = sqrt(tersoff->params[index_ijj].bigd * tersoff->params[index_ikk].bigd);
+          iff(bigr) tersoff->params[index_ijk].bigr = sqrt(tersoff->params[index_ijj].bigr * tersoff->params[index_ikk].bigr);
           //usually copied from iii, but here copied from ijj:
           iff(beta) tersoff->params[index_ijk].beta = tersoff->params[index_ijj].beta;
           iff(powern) tersoff->params[index_ijk].powern = tersoff->params[index_ijj].powern;
           iff(c) tersoff->params[index_ijk].c = tersoff->params[index_ijj].c;
           iff(d) tersoff->params[index_ijk].d = tersoff->params[index_ijj].d;
           iff(h) tersoff->params[index_ijk].h = tersoff->params[index_ijj].h;
+        }
+        else {
+          //printf("Mixing: %d %d %d ignored\n", i_tersoff, j_tersoff, k_tersoff);
+          //printf("Mixing: %s %s %s ignored    ", tersoff->elements[i_tersoff], tersoff->elements[j_tersoff], tersoff->elements[k_tersoff]);
+          printf("No bonds: %s--%s--%s\n", tersoff->elements[j_tersoff], tersoff->elements[i_tersoff], tersoff->elements[k_tersoff]);
         }
         //3-wise parameters, always treated as ijj regardless of iii or ijj issues:
         iff(gamma) tersoff->params[index_ijk].gamma = tersoff->params[index_ijj].gamma;
