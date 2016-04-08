@@ -91,24 +91,26 @@ for line in open(system.name+'_input.tersoff'):
 	if line.startswith('# LJ-sigma:'): lj_sigma = line.split()[2:]
 	if line.startswith('# LJ-epsilon:'): lj_epsilon = line.split()[2:]
 	
-tersoff_cutoffs = re.findall('\n     +\S+ +\S+ +\S+ +\S+ +(\S+)', open(system.name+'_input.tersoff').read())
-inner_cutoffs = [float(tersoff_cutoffs[0]), float(tersoff_cutoffs[-1])] #assumes there are 2 tersoff types
+tersoff_cutoff_strings = re.findall('\n     +\S+ +\S+ +\S+ +\S+ +(\S+)', open(system.name+'_input.tersoff').read())
+#inner_cutoffs = [D+R for cut in tersoff_cutoff_strings if cut!='0']  #todo: read inner cutoffs from input file
 
-pb_type = 0
-cl_type = 1
+index = 0
+for t in system.atom_types:
+	if t in tersoff_types:
+		t.charge = charges[index]
+		t.vdw_e = lj_epsilon[index]
+		t.vdw_r = lj_sigma[index]
+		t.inner_cutoff = inner_cutoffs[index]
+		index += 1
+	else:
+		t.inner_cutoff = 0.0
 
 for i in range(len(system.atom_types)):
 	for j in range(i, len(system.atom_types)):
-		if i>=len(charges) or j>=len(charges):
-			if i==pb_type:
-				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5-0.0) )
-			elif i==cl_type:
-				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5+0.0) )
-			else:
-				commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f 0.0' % (i+1, j+1, (system.atom_types[i].vdw_e*system.atom_types[j].vdw_e)**0.5, (system.atom_types[i].vdw_r*system.atom_types[j].vdw_r)**0.5) )
-		else:
-			commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f %f' % (i+1, j+1, (float(lj_epsilon[i])*float(lj_epsilon[j]))**0.5, (float(lj_sigma[i])*float(lj_sigma[j]))**0.5, (inner_cutoffs[i]*inner_cutoffs[j])**0.5) )
-			commands.append('set type %d charge %f' % (i+1, float(charges[i])) )
+		type_i = system.atom_types[i]
+		type_j = system.atom_types[j]
+		commands.append('pair_coeff %d %d lj/cut/coul/inout %f %f %f' % (i+1, j+1, (type_i.vdw_e*type_j.vdw_e)**0.5, (type_i.vdw_r*type_j.vdw_r)**0.5, (type_i.inner_cutoff*type_j.inner_cutoff)**0.5) )
+	commands.append('set type %d charge %f' % (i+1, type_i.charge) )
 
 lmp = utils.Struct()
 lmp.file = open(system.name+'.in', 'w')

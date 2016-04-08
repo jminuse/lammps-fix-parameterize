@@ -35,7 +35,7 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 		except IndexError:
 			continue
 		if 'PbMACl3_mp2_' not in name: continue
-		if 'md' in name: continue
+		#if 'md' in name: continue
 			#if len(atoms)<4 or len(atoms)>6 or len(atoms)==5 or 'mp2' not in name or 'qz' in name: continue
 		#if '-4' in name and not name.endswith('ma3'): continue # strong anion without augmented basis
 		#if 'PbCl6_' in name and not ('_ma3' in name and '_opt_' in name): continue
@@ -117,8 +117,6 @@ for line in open(system.name+'_input.tersoff'):
 	if line.startswith('# LJ-epsilon:'): lj_epsilon = [float(x) for x in line.split()[2:]]
 
 tersoff_cutoff_strings = re.findall('\n     +\S+ +\S+ +\S+ +\S+ +(\S+)', open(system.name+'_input.tersoff').read())
-inner_cutoffs = [0.0 for x in charges]
-#inner_cutoffs = [float(cut) for cut in tersoff_cutoff_strings if cut!='0'] #todo: read inner cutoffs from input file
 
 index = 0
 for t in system.atom_types:
@@ -126,7 +124,7 @@ for t in system.atom_types:
 		t.charge = charges[index]
 		t.vdw_e = lj_epsilon[index]
 		t.vdw_r = lj_sigma[index]
-		t.inner_cutoff = inner_cutoffs[index]
+		t.inner_cutoff = inner_cutoffs[index] #For now these are set by min_style params. 
 		index += 1
 	else:
 		t.inner_cutoff = 0.0
