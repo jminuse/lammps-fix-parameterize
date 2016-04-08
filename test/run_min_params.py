@@ -116,15 +116,13 @@ for line in open(system.name+'_input.tersoff'):
 	if line.startswith('# LJ-sigma:'): lj_sigma = [float(x) for x in line.split()[2:]]
 	if line.startswith('# LJ-epsilon:'): lj_epsilon = [float(x) for x in line.split()[2:]]
 
-tersoff_cutoff_strings = re.findall('\n     +\S+ +\S+ +\S+ +\S+ +(\S+)', open(system.name+'_input.tersoff').read())
-
 index = 0
 for t in system.atom_types:
 	if t in tersoff_types:
 		t.charge = charges[index]
 		t.vdw_e = lj_epsilon[index]
 		t.vdw_r = lj_sigma[index]
-		t.inner_cutoff = inner_cutoffs[index] #For now these are set by min_style params. 
+		t.inner_cutoff = 0.0 #For now these are set by min_style params. 
 		index += 1
 	else:
 		t.inner_cutoff = 0.0
