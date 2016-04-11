@@ -1,17 +1,17 @@
 <molecule>
  <atomArray>
-  <atom id="a1" elementType="C" label="234" x3="2.850623" y3="3.593252" z3="2.831102"/>
-  <atom id="a2" elementType="N" label="230" x3="2.032737" y3="2.633205" z3="2.028140"/>
-  <atom id="a3" elementType="H" label="233" x3="3.525811" y3="3.017269" z3="3.465952"/>
-  <atom id="a4" elementType="H" label="233" x3="2.215517" y3="4.243367" z3="3.436611"/>
-  <atom id="a5" elementType="H" label="233" x3="3.457001" y3="4.183204" z3="2.141978"/>
-  <atom id="a6" elementType="H" label="85" x3="1.481940" y3="2.003734" z3="2.615675"/>
-  <atom id="a7" elementType="H" label="85" x3="2.773683" y3="1.997376" z3="1.429904"/>
-  <atom id="a8" elementType="H" label="85" x3="1.417062" y3="3.106313" z3="1.363389"/>
-  <atom id="a9" elementType="Pb" label="907" x3="0.000000" y3="0.000000" z3="0.000000"/>
-  <atom id="a10" elementType="Cl" label="344" x3="3.300000" y3="0.000000" z3="0.000000"/>
-  <atom id="a11" elementType="Cl" label="344" x3="0.000000" y3="3.300000" z3="0.000000"/>
-  <atom id="a12" elementType="Cl" label="344" x3="0.000000" y3="0.000000" z3="3.300000"/>
+  <atom id="a1" elementType="C" label="234" x3="2.815505" y3="3.586253" z3="2.874518"/>
+  <atom id="a2" elementType="N" label="230" x3="2.197154" y3="2.603602" z3="2.022278"/>
+  <atom id="a3" elementType="H" label="233" x3="1.652710" y3="1.938732" z3="2.617603"/>
+  <atom id="a4" elementType="H" label="233" x3="2.935424" y3="2.077053" z3="1.491177"/>
+  <atom id="a5" elementType="H" label="233" x3="1.565670" y3="3.093702" z3="1.346570"/>
+  <atom id="a6" elementType="H" label="85" x3="3.519040" y3="3.099965" z3="3.578309"/>
+  <atom id="a7" elementType="H" label="85" x3="2.043874" y3="4.154849" z3="3.431149"/>
+  <atom id="a8" elementType="H" label="85" x3="3.361557" y3="4.306248" z3="2.258225"/>
+  <atom id="a9" elementType="Pb" label="907" x3="-0.117498" y3="-0.111299" z3="-0.117747"/>
+  <atom id="a10" elementType="Cl" label="344" x3="3.436934" y3="-0.094354" z3="-0.066191"/>
+  <atom id="a11" elementType="Cl" label="344" x3="-0.312046" y3="3.472185" z3="-0.265097"/>
+  <atom id="a12" elementType="Cl" label="344" x3="-0.043949" y3="-0.049217" z3="3.441956"/>
  </atomArray>
  <bondArray>
   <bond atomRefs2="a1 a2" order="1"/>

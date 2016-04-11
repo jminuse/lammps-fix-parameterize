@@ -34,12 +34,17 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 			atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad', pos='Ang')
 		except IndexError:
 			continue
-		if 'PbMACl3_mp2_' not in name: continue
+		if 'PbMACl3_mp2_' not in name:
+			if len(atoms)!=4 or 'mp2' not in name or 'qz' in name: continue
 		if 'md' in name: continue
 			#if len(atoms)<4 or len(atoms)>6 or len(atoms)==5 or 'mp2' not in name or 'qz' in name: continue
 		#if '-4' in name and not name.endswith('ma3'): continue # strong anion without augmented basis
 		#if 'PbCl6_' in name and not ('_ma3' in name and '_opt_' in name): continue
 		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)
+		for b in with_bonds.bonds:
+			r = utils.dist(*b.atoms)
+			if r > 2.5:
+				raise Exception('Bond too large (%.5g A) in %s' % (r,name))
 		for a,b in zip(atoms,with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
 			b.fx, b.fy, b.fz = a.fx*convert, a.fy*convert, a.fz*convert
@@ -67,10 +72,6 @@ for composition in systems_by_composition: #within each type of system, lowest e
 
 system.xhi = len(system.molecules)*1000.0+100.0
 
-count = 0
-for m in system.molecules:
-	files.write_xyz(m.atoms,str(count))
-	count += 1
 files.write_xyz(xyz_atoms, 'states')
 #exit()
 

@@ -137,17 +137,18 @@ for t in system.dihedral_types:
 
 commands = '''
 neigh_modify every 1 check yes delay 0
-dump	1 all xyz 100 '''+system.name+'''.xyz
+dump	1 all xyz 1000 '''+system.name+'''.xyz
 thermo_style custom step temp epair emol vol
 thermo 1000
-minimize 0.0 1.0e-8 1000 100000
-min_style fire
-minimize 0.0 1.0e-8 1000 100000
-#fix motion all npt temp 300.0 300.0 100.0 iso 1.0 1.0 1000.0
-fix motion all nvt temp 400.0 400.0 100.0
+#minimize 0.0 1.0e-8 1000 100000
+#min_style fire
+#minimize 0.0 1.0e-8 1000 100000
+group mobile id > 8 #only for PbCl3+MA
+#fix motion mobile npt temp 300.0 300.0 100.0 iso 1.0 1.0 1000.0
+fix motion mobile nvt temp 400.0 800.0 100.0
 velocity all create 400.0 '''+random_seed+''' rot yes dist gaussian
-timestep 0.5
-run 10000
+timestep 1.0
+run 100000
 '''
 for line in commands.splitlines():
 	lmp.command(line)

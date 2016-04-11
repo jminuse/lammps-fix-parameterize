@@ -490,6 +490,37 @@ def new_tersoff():
 				print a,b,c, '''        1         0         0         0         0         0
                  0         0         0         0         0         0         0         0'''
 
-def run_min_params():
-	
+def delete_excess_xyz():
+	for i in range(300):
+		if os.path.isfile('%d.xyz'%i):
+			os.remove('%d.xyz'%i)
+
+def fix_cml():
+	directories = next(os.walk('orca'))[1]
+	for directory in directories:
+		name = directory
+		if not os.path.isfile('orca/'+name+'/'+name+'.orca.engrad'): continue
+		if not os.path.isfile('orca/'+name+'/system.cml'): continue
+		try:
+			atoms, energy = orca.engrad_read('orca/'+name+'/'+name+'.orca.engrad', pos='Ang')
+		except IndexError:
+			continue
+		atoms = orca.read(name).atoms
+		if 'PbMACl3_mp2_' not in name: continue
+		bonds = utils.get_bonds(atoms)
+		for a in atoms:
+			if a.element=='Pb': a.label = 907
+			elif a.element=='Cl': a.label = 344
+			elif a.element=='C': a.label = 234
+			elif a.element=='N': a.label = 230
+			else:
+				if 'N' in [b.element for b in a.bonded]:
+					a.label = 233
+				if 'C' in [b.element for b in a.bonded]:
+					a.label = 85
+			#print a.element, a.label, [utils.dist(a,b) for b in a.bonded]
+		bonds = [b for b in bonds if 'Pb' not in [a.element for a in b.atoms]]
+		files.write_cml(atoms, name='orca/'+name+'/system.cml', bonds=bonds)
+
+fix_cml()
 
