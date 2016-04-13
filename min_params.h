@@ -93,7 +93,7 @@ class MinParams : public Min {
   void pack_params();
   void unpack_params(std::vector<double> pp);
   void read_params_from_comments(std::string filename, std::vector<double> &charges, std::vector<double> &lj_sigma, std::vector<double> &lj_epsilon);
-  void run_NLopt();
+  void run_NLopt(int maxiter);
 };
 }
 

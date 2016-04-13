@@ -50,14 +50,14 @@ elif 0: #MACl+PbCl2
 	#system.add(PbCl2, 0, 0, 5)
 elif 1: #perovskite cubic structure
 	PbMACl3 = utils.Molecule('molecules/PbMACl3', extra_parameters=extra, check_charges=False)
-	L = 6.6
-	N = 1
+	L = 6.0
+	N = 2
 	#system.xlo,system.xhi = -N*L*0.5, N*L*0.5
 	#system.ylo,system.yhi = -N*L*0.5, N*L*0.5
 	#system.zlo,system.zhi = -N*L*0.5, N*L*0.5
 	for xi in range(N):
-		for yi in range(N):
-			for zi in range(N):
+		for yi in range(1):
+			for zi in range(1):
 				x, y, z = (xi-0.5)*L, (yi-0.5)*L, (zi-0.5)*L
 				system.add(PbMACl3, x, y, z)
 else: #packed, solvated system
@@ -137,18 +137,19 @@ for t in system.dihedral_types:
 
 commands = '''
 neigh_modify every 1 check yes delay 0
-dump	1 all xyz 1000 '''+system.name+'''.xyz
+dump	1 all xyz 100 '''+system.name+'''.xyz
 thermo_style custom step temp epair emol vol
 thermo 1000
 #minimize 0.0 1.0e-8 1000 100000
-#min_style fire
-#minimize 0.0 1.0e-8 1000 100000
-group mobile id > 8 #only for PbCl3+MA
+min_style fire
+minimize 0.0 1.0e-8 1000 100000
+#group mobile id 9 10 11 12   21 22 23 24   33 34 35 36   45 46 47 48  #only for PbCl3+MA
+group mobile id > 0
 #fix motion mobile npt temp 300.0 300.0 100.0 iso 1.0 1.0 1000.0
-fix motion mobile nvt temp 400.0 800.0 100.0
-velocity all create 400.0 '''+random_seed+''' rot yes dist gaussian
+fix motion mobile nvt temp 10.0 300.0 100.0
+velocity all create 10.0 '''+random_seed+''' rot yes dist gaussian
 timestep 1.0
-run 100000
+run 10000
 '''
 for line in commands.splitlines():
 	lmp.command(line)
