@@ -34,7 +34,7 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 			atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad', pos='Ang')
 		except IndexError:
 			continue
-		if all([s not in name for s in ['PbMACl3x2_mp2_', 'PbMACl3_mp2_']]): continue
+		if all([s not in name for s in ['PbMACl3_mp2_', 'PbCl6NH3CH3-2_mp2_sp_']]): continue  #'PbMACl3x2_mp2_', 'PbMACl3_mp2_', 
 		#	if len(atoms)!=3 or 'mp2' not in name or 'qz' in name or 'PbCl2_' not in name: continue
 		if '_md_' in name: continue
 			#if len(atoms)<4 or len(atoms)>6 or len(atoms)==5 or 'mp2' not in name or 'qz' in name: continue

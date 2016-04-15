@@ -2,7 +2,7 @@ from merlin import *
 
 import matplotlib.pyplot as plt
 import numpy as np
-import time, copy, random
+import time, copy, random, shutil
 
 def test_functional_form():
 	eps = 1.0
@@ -576,15 +576,61 @@ def PbCl6_MA2_correct_charge():
 			a.x,a.y,a.z = b.x,b.y,b.z
 		files.write_cml(system, name='orca/'+name+'/system.cml')
 
-def PbCl6_MA2_opt_minus2():
-	#orca.job('PbCl6NH3CH3-2_opt', '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} Grid3 FinalGrid5 Opt', charge=-2, queue=None, previous='PbCl6_MA2_opt_mp2')
-	orca.job('PbCl6NH3CH3-2_opt2', '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} Grid3 FinalGrid5 Opt', orca.read('PbCl6_MA2_opt_mp2').atoms, charge=-2, queue=None)
-
-def Pb2Cl8_3NH3CH3_opt():
+def Pb2Cl8_3NH3CH3_opt(): #Cl ions breaking off from Pb, structure is not stable. Not passivated enough with CH3NH3. 
 	orca.job('Pb2Cl8_3NH3CH3_-1_opt', '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} Grid3 FinalGrid5 Opt', utils.Molecule('molecules/Pb2Cl8_3NH3CH3_-1', check_charges=False).atoms, charge=-1, queue=None)
 
-def Pb2Cl11_4NH3CH3_neg3():
-	orca.job('Pb2Cl11_4NH3CH3_-3_opt', '! B97-D3 GCP(DFT/SVP) def2-SVP ECP{def2-TZVP} Opt LooseOpt', utils.Molecule('molecules/Pb2Cl11_4NH3CH3_-3', check_charges=False).atoms, charge=-3, queue=None)
+def Pb2Cl11_4NH3CH3_neg3(): #Cl ions breaking off from Pb, structure is not stable. Not passivated enough with CH3NH3. 
+	#orca.job('Pb2Cl11_4NH3CH3_-3_opt', '! B97-D3 GCP(DFT/SVP) def2-SVP ECP{def2-TZVP} Opt LooseOpt', utils.Molecule('molecules/Pb2Cl11_4NH3CH3_-3', check_charges=False).atoms, charge=-3, queue=None)
+	orca.job('Pb2Cl11_4NH3CH3_-3_opt2', '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} Grid3 FinalGrid5 Opt', charge=-3, queue=None, previous='Pb2Cl11_4NH3CH3_-3_opt')
 
-Pb2Cl11_4NH3CH3_neg3()
+def PbCl6_MA2_opt_neg2(): #good!
+	#orca.job('PbCl6NH3CH3-2_opt', '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} Grid3 FinalGrid5 Opt', charge=-2, queue=None, previous='PbCl6_MA2_opt_mp2')
+	#orca.job('PbCl6NH3CH3-2_opt2', '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} Grid3 FinalGrid5 Opt', orca.read('PbCl6_MA2_opt_mp2').atoms, charge=-2, queue=None)
+	#orca.job('PbCl6NH3CH3-2_mp2', '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6', charge=-2, queue='batch', procs=2, grad=True, previous='PbCl6NH3CH3-2_opt2')
+	def perturb():
+		system = utils.Molecule('molecules/PbCl6_MA2', check_charges=False)
+		for step in range(10):
+			new_atoms = orca.read('PbCl6NH3CH3-2_mp2').atoms
+			for a in new_atoms:
+				if a.element in ['Pb','Cl']:
+					a.x += (random.random()-0.5) * 0.02*(step+1)
+					a.y += (random.random()-0.5) * 0.02*(step+1)
+					a.z += (random.random()-0.5) * 0.02*(step+1)
+			name = 'PbCl6NH3CH3-2_mp2_sp_%d'%step
+			orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6', new_atoms, charge=-2, queue='batch', grad=True, previous='PbCl6NH3CH3-2_mp2')
+			for a,b in zip(system.atoms, new_atoms):
+				a.x,a.y,a.z = b.x,b.y,b.z
+			files.write_cml(system, name='orca/'+name+'/system.cml')
+
+def Pb2Cl11_6NH3CH3_neg1(): #good!
+	#orca.job('Pb2Cl11_6NH3CH3_-1_opt', '! B97-D3 GCP(DFT/SVP) def2-SVP ECP{def2-TZVP} Opt LooseOpt', utils.Molecule('molecules/Pb2Cl11_6NH3CH3_-1', check_charges=False, parameter_file=None).atoms, charge=-1, queue=None)
+	#orca.job('Pb2Cl11_6NH3CH3_-1_opt2', '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} Grid3 FinalGrid5 Opt', charge=-1, queue='batch', procs=2, previous='Pb2Cl11_6NH3CH3_-1_opt')
+	#orca.job('Pb2Cl11_6NH3CH3_-1_mp2', '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6', charge=-1, queue='batch', procs=2, grad=True, previous='Pb2Cl11_6NH3CH3_-1_opt2')
+	#orca.job('Pb2Cl11_6NH3CH3_-1_alt1_opt', '! B97-D3 GCP(DFT/SVP) def2-SVP ECP{def2-TZVP} Opt LooseOpt', utils.Molecule('molecules/Pb2Cl11_6NH3CH3_-1_alt1', check_charges=False, parameter_file=None).atoms, charge=-1, queue='batch', procs=2)
+	#orca.job('Pb2Cl11_6NH3CH3_-1_alt1_opt2', '! B97-D3 GCP(DFT/TZ) def2-TZVP ECP{def2-TZVP} Grid3 FinalGrid5 Opt', charge=-1, queue='batch', procs=2, previous='Pb2Cl11_6NH3CH3_-1_alt1_opt')
+	def perturb():
+		system = utils.Molecule('molecules/Pb2Cl11_6NH3CH3_-1', check_charges=False,  parameter_file=None)
+		for step in range(10):
+			new_atoms = orca.read('Pb2Cl11_6NH3CH3_-1_opt2').atoms
+			for a in new_atoms:
+				if a.element in ['Pb','Cl']:
+					a.x += (random.random()-0.5) * 0.02*(step+1)
+					a.y += (random.random()-0.5) * 0.02*(step+1)
+					a.z += (random.random()-0.5) * 0.02*(step+1)
+			name = 'Pb2Cl11_6NH3CH3_-1_mp2_sp_%d'%step
+			orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6', new_atoms, queue='batch', charge=-1, grad=True, previous='Pb2Cl11_6NH3CH3_-1_mp2')
+			for a,b in zip(system.atoms, new_atoms):
+				a.x,a.y,a.z = b.x,b.y,b.z
+			files.write_cml(system, name='orca/'+name+'/system.cml')
+	def perturb_more_memory():
+		for step in range(10):
+			old_name = 'Pb2Cl11_6NH3CH3_-1_mp2_sp_%d'%step
+			name = 'Pb2Cl11_6NH3CH3_-1_mp2_sp2_%d'%step
+			orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6', queue='batch', charge=-1, grad=True, mem=2000, previous=old_name)
+			shutil.copy('orca/'+old_name+'/system.cml', 'orca/'+name+'/system.cml')
+	perturb_more_memory()
+
+#PbCl6_MA2_opt_neg2()
+#Pb2Cl11_6NH3CH3_neg1()
+
 

@@ -52,12 +52,12 @@ elif 1: #perovskite cubic structure
 	PbMACl3 = utils.Molecule('molecules/PbMACl3', extra_parameters=extra, check_charges=False)
 	L = 6.0
 	N = 2
-	#system.xlo,system.xhi = -N*L*0.5, N*L*0.5
-	#system.ylo,system.yhi = -N*L*0.5, N*L*0.5
-	#system.zlo,system.zhi = -N*L*0.5, N*L*0.5
+	system.xlo,system.xhi = -N*L*0.5, N*L*0.5
+	system.ylo,system.yhi = -N*L*0.5, N*L*0.5
+	system.zlo,system.zhi = -N*L*0.5, N*L*0.5
 	for xi in range(N):
-		for yi in range(1):
-			for zi in range(1):
+		for yi in range(N):
+			for zi in range(N):
 				x, y, z = (xi-0.5)*L, (yi-0.5)*L, (zi-0.5)*L
 				system.add(PbMACl3, x, y, z)
 else: #packed, solvated system
