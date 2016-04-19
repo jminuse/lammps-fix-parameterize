@@ -6,7 +6,7 @@ A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lenna
 	
 2.	Open a terminal in the src directory in your lammps folder
 
-3.	In your LAMMPS src directory run "make yes-manybody".
+3.	In your LAMMPS src directory run `make yes-manybody`
 	
 4.	If you don't have an SSH key, generate one like this:
 
@@ -78,7 +78,7 @@ A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lenna
 
 # To parameterize a force field
 
-1.	Build example structure in Avogadro (including any OPLS bonds)
+1.	Build example structures for yoru system in Avogadro (including any OPLS bonds)
 
 2.	Optimize with orca (e.g. Opt B98-D3 def2-TZVP)
 
@@ -86,12 +86,8 @@ A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lenna
 
 4.	Put molecule file system.cml in orca output directory
 
-5.	python run_min_params.py run_name
+5.	Run `python run_min_params.py RUN_NAME`. The output parameters will start to appear in lammps/RUN_NAME_best.tersoff.
 
-6.	Get output from run_name_best.tersoff
+7.	When error is reasonable (e.g. below 10%) `cp lammps/RUN_NAME_best.tersoff lammps/md_input.tersoff`. This allows you to run an annealing job with these parameters using `python run_normal.py RUN_NAME_2`
 
-7.	When error is reasonable (e.g. below 10%) copy run_name_best.tersoff to md_input.tersoff
-
-8.	python run_normal.py run_name
-
-9.	See what went wrong and adjust parameter guess or data set. Frames from view lammps/run_name can be used as example structures
+9.	See what went wrong and adjust parameter guess (lammps/input.tersoff), bounds, or data set. Frames from `view lammps/RUN_NAME_2` can be used as example structures. 
