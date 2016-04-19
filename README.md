@@ -1,6 +1,6 @@
 A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lennard-Jones contributions are available for the range outside the Tersoff cutoffs. 
 
-To use, add these files to the LAMMPS src directory and compile. A makefile is provided in MAKE, specialized for the computer systems of the Clancy research group at Cornell. 
+To use, in your LAMMPS src directory run "make yes-manybody" before adding these files to the LAMMPS src directory and compiling.  A makefile is provided in MAKE, specialized for the computer systems of the Clancy research group at Cornell. 
 
 Getting started:
 
