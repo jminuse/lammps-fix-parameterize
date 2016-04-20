@@ -74,6 +74,7 @@ xyz_atoms = []
 for composition in systems_by_composition: #within each type of system, lowest energy must be first and equal to 0.0
 	systems_by_composition[composition].sort(key=lambda s:s.energy)
 	baseline_energy = systems_by_composition[composition][0].energy
+	print composition
 	for s in systems_by_composition[composition]:
 		s.energy -= baseline_energy
 		s.energy *= 627.5 #Convert Hartree to kcal/mol
