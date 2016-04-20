@@ -41,23 +41,23 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 		elements = [a.element for a in result.atoms]
 		if 'N' not in elements:
 			continue
+		if len(result.atoms)==24: continue
 		
 		#try to get forces
 		try:
 			forces = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad', pos='Ang')[0]
+			conversion = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
 			for a,b in zip(result.atoms, forces):
-				a.fx, a.fy, a.fz = b.fx, b.fy, b.fz
+				a.fx, a.fy, a.fz = b.fx*conversion, b.fy*conversion, b.fz*conversion
 		except (IndexError, IOError) as e: # no forces available, so use blanks
 			for a in result.atoms:
 				a.fx, a.fy, a.fz = 0.0, 0.0, 0.0
 		
 		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)
 		
-		for a,b in zip(result.atoms, with_bonds.atoms):
-			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
-			b.fx, b.fy, b.fz = a.fx*convert, a.fy*convert, a.fz*convert
-			if utils.dist(a,b)>1e-4:
-				raise Exception('Atoms are different:', (a.x,a.y,a.z), (b.x,b.y,b.z))
+		for a,b in zip(with_bonds.atoms, result.atoms):
+			a.fx, a.fy, a.fz = b.fx, b.fy, b.fz # copy forces
+			if utils.dist(a,b)>1e-4: raise Exception('Atoms are different:', (a.x,a.y,a.z), (b.x,b.y,b.z)) # sanity check on atom positions
 		
 		with_bonds.energy = result.energy
 		with_bonds.name = name
