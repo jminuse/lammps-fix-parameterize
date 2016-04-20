@@ -1,12 +1,14 @@
 A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lennard-Jones contributions are available for the range outside the Tersoff cutoffs. 
 
-To use, add these files to the LAMMPS src directory and compile. A makefile is provided in MAKE, specialized for the computer systems of the Clancy research group at Cornell. 
+# Getting started
 
-Getting started:
+1.	Download the latest version of LAMMPS (http://lammps.sandia.gov/download.html)
+	
+2.	Open a terminal in the src directory in your lammps folder
 
-1.	Open a terminal in the src directory in your lammps folder
-
-2.	Generate an SSH key and add it to the ssh-agent
+3.	In your LAMMPS src directory run `make yes-manybody`
+	
+4.	If you don't have an SSH key, generate one like this:
 
 		ssh-keygen -t rsa -b 4096 -C "your_email@example.com"  #Creates an ssh key, using your GitHub e-mail as a label
 		
@@ -14,8 +16,8 @@ Getting started:
 	If asked to Overwrite, enter 'y'
 	At the prompt, type a secure passphrase
 	Retype your secure passphrase
-	
-3.	Adding a new SSH key to your GitHub account
+
+5.	Adding a new SSH key to your GitHub account
 
 		gedit ~/.ssh/id_rsa.pub
 	
@@ -25,8 +27,8 @@ Getting started:
 	In the "Title" field, add a descriptive label for the new key
 	Copy and Paste the contents from the 'id_rsa.pub' file into the "Key" field
 	Click 'Add SSH key'
-	
-4.	Load your keys into your SSH agent
+
+6.	Load your keys into your SSH agent
 	
 		eval "$(ssh-agent -s)"
 		
@@ -34,13 +36,13 @@ Getting started:
 		
 	Enter passphrase
 	
-5.	Test your SSH connection
+7.	Test your SSH connection
 
 		ssh -T git@github.com
 		
 	You should see the message "Hi 'username'! You've successfully authenicated, but GitHub does not provide shell access."
 
-6.	Clone repository into src folder
+8.	Clone repository into src folder
 	
 		git init
 		
@@ -60,7 +62,7 @@ Getting started:
 
 	until "Untracked working tree file" is replaced by a message like "Branch master set up to track remote branch master from origin."
 
-7. You're done! Now each time you sit down to work, just update your local copy via:
+9. You're done! Now each time you sit down to work, just update your local copy via:
 
 		git pull
 
@@ -74,3 +76,18 @@ Getting started:
 
 	This will make your changes appear to others when they use "git pull" later.
 
+# To parameterize a force field
+
+1.	Build example structures for yoru system in Avogadro (including any OPLS bonds)
+
+2.	Optimize with orca (e.g. Opt B98-D3 def2-TZVP)
+
+3.	Analyze at higher level (e.g. SP RI-B2PLYP D3BJ def2-TZVP)
+
+4.	Put molecule file system.cml in orca output directory
+
+5.	Run `python run_min_params.py RUN_NAME`. The output parameters will start to appear in lammps/RUN_NAME_best.tersoff.
+
+7.	When error is reasonable (e.g. below 10%) `cp lammps/RUN_NAME_best.tersoff lammps/md_input.tersoff`. This allows you to run an annealing job with these parameters using `python run_normal.py RUN_NAME_2`
+
+9.	See what went wrong and adjust parameter guess (lammps/input.tersoff), bounds, or data set. Frames from `view lammps/RUN_NAME_2` can be used as example structures. 

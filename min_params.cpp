@@ -67,18 +67,18 @@ void MinParams::modify_params(int narg, char **arg)
   run_name = std::string(arg[0]); //prefix for all output files
   std::string optimization_method = std::string(arg[1]); //name of algorithm
   random_seed = force->inumeric(FLERR,arg[2]);
-  
+
   if(optimization_method == "DIRECT") { // DIviding RECTangles algorithm, deterministic
     algorithm = NLOPT_GN_DIRECT;
   } else if(optimization_method == "DIRECT-L") { // DIviding RECTangles algorithm, Locally-biased, non-deterministic
     algorithm = NLOPT_GN_DIRECT_L_RAND;
   } else if(optimization_method == "CRS") { // Controlled Random Search
     algorithm = NLOPT_GN_CRS2_LM;
-  } else if(optimization_method == "ISRES") { // Improved Stochastic Ranking Evolution Strategy. Mutation + local simplex optimization. 
+  } else if(optimization_method == "ISRES") { // Improved Stochastic Ranking Evolution Strategy. Mutation + local simplex optimization.
     algorithm = NLOPT_GN_ISRES;
   } else if(optimization_method == "COBYLA") { // "Error -4: Halted because roundoff errors limited progress."
     algorithm = NLOPT_LN_COBYLA;
-  } else if(optimization_method == "ESCH") { // evolutionary algorithm. Certainly slow, possibly steady. 
+  } else if(optimization_method == "ESCH") { // evolutionary algorithm. Certainly slow, possibly steady.
     algorithm = NLOPT_GN_ESCH;
   } else if(optimization_method == "BOBYQA") { // "Error -4: Halted because roundoff errors limited progress."
     algorithm = NLOPT_LN_BOBYQA;
@@ -439,21 +439,21 @@ void MinParams::unpack_params(std::vector<double> params) {
         else if(tersoff->params[index_ijj].biga > 0.0 && tersoff->params[index_ikk].biga > 0.0) { // use ijj parameters, possibly mixed with ikk parameters
           //printf("Bonds: %s--%s--%s = mix(%s--%s--%s, %s--%s--%s)\n", element_j, element_i, element_k,    element_j, element_i, element_j,    element_k, element_i, element_k);
           //usually mixed, but here just copied:
-          iff(lam1) tersoff->params[index_ijk].lam1 = 0.5*(tersoff->params[index_ijj].lam1 + tersoff->params[index_ikk].lam1);
-          iff(lam2) tersoff->params[index_ijk].lam2 = 0.5*(tersoff->params[index_ijj].lam2 + tersoff->params[index_ikk].lam2);
+          iff(lam1) tersoff->params[index_ijk].lam1 = sqrt(tersoff->params[index_ijj].lam1 * tersoff->params[index_ikk].lam1);
+          iff(lam2) tersoff->params[index_ijk].lam2 = sqrt(tersoff->params[index_ijj].lam2 * tersoff->params[index_ikk].lam2);
           iff(biga) tersoff->params[index_ijk].biga = sqrt(tersoff->params[index_ijj].biga * tersoff->params[index_ikk].biga);
           iff(bigb) tersoff->params[index_ijk].bigb = sqrt(tersoff->params[index_ijj].bigb * tersoff->params[index_ikk].bigb);
-          iff(bigd) tersoff->params[index_ijk].bigd = sqrt(tersoff->params[index_ijj].bigd * tersoff->params[index_ikk].bigd);
+          iff(bigd) tersoff->params[index_ijk].bigd = 0.5*(tersoff->params[index_ijj].bigd + tersoff->params[index_ikk].bigd);
           iff(bigr) tersoff->params[index_ijk].bigr = sqrt(tersoff->params[index_ijj].bigr * tersoff->params[index_ikk].bigr);
           //usually copied from iii, but here copied from ijj:
-          iff(beta) tersoff->params[index_ijk].beta = tersoff->params[index_ijj].beta;
-          iff(powern) tersoff->params[index_ijk].powern = tersoff->params[index_ijj].powern;
-          iff(c) tersoff->params[index_ijk].c = tersoff->params[index_ijj].c;
-          iff(d) tersoff->params[index_ijk].d = tersoff->params[index_ijj].d;
-          iff(h) tersoff->params[index_ijk].h = tersoff->params[index_ijj].h;
+          iff(beta) tersoff->params[index_ijk].beta = sqrt(tersoff->params[index_ijj].beta * tersoff->params[index_ikk].beta);
+          iff(powern) tersoff->params[index_ijk].powern = 0.5*(tersoff->params[index_ijj].powern + tersoff->params[index_ikk].powern);
+          iff(c) tersoff->params[index_ijk].c = sqrt(tersoff->params[index_ijj].c * tersoff->params[index_ikk].c);
+		  iff(d) tersoff->params[index_ijk].d = 0.5*(tersoff->params[index_ijj].d + tersoff->params[index_ikk].d);
+          iff(h) tersoff->params[index_ijk].h = 0.5*(tersoff->params[index_ijj].h + tersoff->params[index_ikk].h);
           //3-wise parameters, mixed ijj and ikk
           iff(gamma) tersoff->params[index_ijk].gamma = sqrt(tersoff->params[index_ijj].gamma * tersoff->params[index_ikk].gamma);
-          iff(lam3) tersoff->params[index_ijk].lam3 = 0.5*(tersoff->params[index_ijj].lam3 + tersoff->params[index_ikk].lam3);
+          iff(lam3) tersoff->params[index_ijk].lam3 = sqrt(tersoff->params[index_ijj].lam3 * tersoff->params[index_ikk].lam3);
           iff(powerm) tersoff->params[index_ijk].powerm = sqrt(tersoff->params[index_ijj].powerm * tersoff->params[index_ikk].powerm);
         }
         else {
