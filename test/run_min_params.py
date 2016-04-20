@@ -37,11 +37,13 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 		# selection criteria for which jobs to use
 		if not result.finished:
 			continue
-		if 'RI-B2PLYP' not in result.route: continue
+		if 'RI-B2PLYP' not in result.route:
+			continue
 		elements = [a.element for a in result.atoms]
 		if 'N' not in elements:
 			continue
-		if len(result.atoms)==24: continue
+		if len(result.atoms)==24:
+			continue
 		
 		#try to get forces
 		try:
