@@ -626,11 +626,11 @@ def Pb2Cl11_6NH3CH3_neg1(): #good!
 		for step in range(10):
 			old_name = 'Pb2Cl11_6NH3CH3_-1_mp2_sp_%d'%step
 			name = 'Pb2Cl11_6NH3CH3_-1_mp2_sp2_%d'%step
-			orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6', queue='batch', charge=-1, grad=True, mem=2000, previous=old_name)
+			orca.job(name, '! RIJCOSX RI-B2PLYP D3BJ def2-TZVP ECP{def2-TZVP} TIGHTSCF Grid5 FinalGrid6', queue='batch', charge=-1, previous=old_name)
 			shutil.copy('orca/'+old_name+'/system.cml', 'orca/'+name+'/system.cml')
 	perturb_more_memory()
 
 #PbCl6_MA2_opt_neg2()
-#Pb2Cl11_6NH3CH3_neg1()
+Pb2Cl11_6NH3CH3_neg1()
 
 

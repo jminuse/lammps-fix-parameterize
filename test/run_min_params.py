@@ -26,33 +26,43 @@ systems_by_composition = {}
 
 for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 	directories = next(os.walk(outer+'orca'))[1]
-	for directory in directories:
-		name = directory
-		if not os.path.isfile(outer+'orca/'+name+'/'+name+'.orca.engrad'): continue
-		if not os.path.isfile(outer+'orca/'+name+'/system.cml'): continue
-		try:
-			atoms, energy = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad', pos='Ang')
-		except IndexError:
+	for name in directories:
+		if not os.path.isfile(outer+'orca/'+name+'/system.cml'):
 			continue
-		if all([s not in name for s in ['PbMACl3_mp2_', 'PbCl6NH3CH3-2_mp2_sp_']]): continue  #'PbMACl3x2_mp2_', 'PbMACl3_mp2_', 
-		#	if len(atoms)!=3 or 'mp2' not in name or 'qz' in name or 'PbCl2_' not in name: continue
-		if '_md_' in name: continue
-			#if len(atoms)<4 or len(atoms)>6 or len(atoms)==5 or 'mp2' not in name or 'qz' in name: continue
-		#if '-4' in name and not name.endswith('ma3'): continue # strong anion without augmented basis
-		#if 'PbCl6_' in name and not ('_ma3' in name and '_opt_' in name): continue
+		try:
+			result = orca.read(outer+'orca/'+name+'/'+name+'.out')
+		except IOError:
+			continue
+		
+		# selection criteria for which jobs to use
+		if not result.finished:
+			continue
+		if 'RI-B2PLYP' not in result.route: continue
+		elements = [a.element for a in result.atoms]
+		if 'N' not in elements:
+			continue
+		
+		#try to get forces
+		try:
+			forces = orca.engrad_read(outer+'orca/'+name+'/'+name+'.orca.engrad', pos='Ang')[0]
+			for a,b in zip(result.atoms, forces):
+				a.fx, a.fy, a.fz = b.fx, b.fy, b.fz
+		except (IndexError, IOError) as e: # no forces available, so use blanks
+			for a in result.atoms:
+				a.fx, a.fy, a.fz = 0.0, 0.0, 0.0
+		
 		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)
-		for b in with_bonds.bonds:
-			r = utils.dist(*b.atoms)
-			if r > 2.5:
-				raise Exception('Bond too large (%.5g A) in %s' % (r,name))
-		for a,b in zip(atoms,with_bonds.atoms):
+		
+		for a,b in zip(result.atoms, with_bonds.atoms):
 			convert = 627.51/0.529177249 #Hartee/Bohr to kcal/mole-Angstrom
 			b.fx, b.fy, b.fz = a.fx*convert, a.fy*convert, a.fz*convert
 			if utils.dist(a,b)>1e-4:
-				raise Exception('Atoms too different:', (a.x,a.y,a.z), (b.x,b.y,b.z))
-		with_bonds.energy = energy
+				raise Exception('Atoms are different:', (a.x,a.y,a.z), (b.x,b.y,b.z))
+		
+		with_bonds.energy = result.energy
 		with_bonds.name = name
-		composition = ' '.join(sorted([a.element for a in atoms]))
+		
+		composition = ' '.join(sorted([a.element for a in result.atoms]))
 		if composition not in systems_by_composition:
 			systems_by_composition[composition] = []
 		systems_by_composition[composition].append(with_bonds)
@@ -66,7 +76,7 @@ for composition in systems_by_composition: #within each type of system, lowest e
 		s.energy -= baseline_energy
 		s.energy *= 627.5 #Convert Hartree to kcal/mol
 		if s.energy > 500.0: continue #don't use high-energy systems, because these will not likely be sampled in MD
-		print composition, s.name, s.energy #for testing purposes
+		print s.name, s.energy #for testing purposes
 		xyz_atoms.append(s.atoms) #for testing purposes
 		system.add(s, len(system.molecules)*1000.0)
 
