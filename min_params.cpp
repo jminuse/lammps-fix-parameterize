@@ -248,7 +248,7 @@ double MinParams::calculate_error()
   //get current energies
   std::fill(current_energies.begin(), current_energies.end(), 0.0);
   for(unsigned int i=0; i<atom->natoms; i++) {
-    unsigned int which_system = int((x[i][0]+100.0)/1000.0);
+    unsigned int which_system = int((x[i][0]+100.0)/1000.0); // ASSUMPTION here
     current_energies[ which_system ] += compute_pe->vector_atom[i];
   }
   //set baseline for each type of system, denoted by E=0.0 in energy input file
@@ -449,7 +449,7 @@ void MinParams::unpack_params(std::vector<double> params) {
           iff(beta) tersoff->params[index_ijk].beta = sqrt(tersoff->params[index_ijj].beta * tersoff->params[index_ikk].beta);
           iff(powern) tersoff->params[index_ijk].powern = 0.5*(tersoff->params[index_ijj].powern + tersoff->params[index_ikk].powern);
           iff(c) tersoff->params[index_ijk].c = sqrt(tersoff->params[index_ijj].c * tersoff->params[index_ikk].c);
-		  iff(d) tersoff->params[index_ijk].d = 0.5*(tersoff->params[index_ijj].d + tersoff->params[index_ikk].d);
+          iff(d) tersoff->params[index_ijk].d = 0.5*(tersoff->params[index_ijj].d + tersoff->params[index_ikk].d);
           iff(h) tersoff->params[index_ijk].h = 0.5*(tersoff->params[index_ijj].h + tersoff->params[index_ikk].h);
           //3-wise parameters, mixed ijj and ikk
           iff(gamma) tersoff->params[index_ijk].gamma = sqrt(tersoff->params[index_ijj].gamma * tersoff->params[index_ikk].gamma);
@@ -496,7 +496,7 @@ void MinParams::unpack_params(std::vector<double> params) {
     }
   }
   //enforce charge constraint: Only charge on type 0 matters, Q_1 = -0.5*Q_0. Assumes system is PbCl2.
-  charges_current[1] = -0.5*charges_current[0];
+  charges_current[1] = -0.5*charges_current[0]; // ASSUMPTION here
   //put new charge on each atom
   for(int a=0; a < atom->natoms; a++) {
     atom->q[a] = charges_current[atom->type[a]-1]; //todo: make sure there are no resulting parameters based on charge that need to be recalculated after changing charge
