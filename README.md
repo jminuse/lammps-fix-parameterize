@@ -1,14 +1,8 @@
 A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lennard-Jones contributions are available for the range outside the Tersoff cutoffs. 
 
 # Getting started
-
-1.	Download LAMMPS (http://lammps.sandia.gov/download.html). Some versions will not work - the 7 Dec 2015 is the one we've tested the most, so use that one. 
 	
-2.	Open a terminal in the src directory in your lammps folder
-
-3.	In your LAMMPS src directory run `make yes-manybody`
-	
-4.	If you don't have an SSH key, generate one like this:
+1.	If you don't have an SSH key, generate one like this:
 
 		ssh-keygen -t rsa -b 4096 -C "your_email@example.com"  #Creates an ssh key, using your GitHub e-mail as a label
 		
@@ -17,7 +11,7 @@ A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lenna
 	At the prompt, type a secure passphrase
 	Retype your secure passphrase
 
-5.	Adding a new SSH key to your GitHub account
+	- Add the SSH key to your GitHub account
 
 		gedit ~/.ssh/id_rsa.pub
 	
@@ -28,7 +22,7 @@ A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lenna
 	Copy and Paste the contents from the 'id_rsa.pub' file into the "Key" field
 	Click 'Add SSH key'
 
-6.	Load your keys into your SSH agent
+	- Load your keys into your SSH agent
 	
 		eval "$(ssh-agent -s)"
 		
@@ -36,13 +30,13 @@ A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lenna
 		
 	Enter passphrase
 	
-7.	Test your SSH connection
+	- Test your SSH connection
 
 		ssh -T git@github.com
 		
 	You should see the message "Hi 'username'! You've successfully authenicated, but GitHub does not provide shell access."
 
-8.	Clone repository into src folder
+2.	Download the repository from github:
 	
 		git init
 		
@@ -62,7 +56,11 @@ A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lenna
 
 	until "Untracked working tree file" is replaced by a message like "Branch master set up to track remote branch master from origin."
 
-9. You're done! Now each time you sit down to work, just update your local copy via:
+3.	Make the new version of lammps by running
+	
+		make serial
+
+4. 	You're done! Now each time you sit down to work, just update your local copy via:
 
 		git pull
 
