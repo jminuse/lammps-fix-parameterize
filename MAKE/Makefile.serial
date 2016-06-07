@@ -39,8 +39,8 @@ LMP_INC =	-DLAMMPS_GZIP
 # PATH = path for MPI library
 # LIB = name of MPI library
 
-MPI_INC =       -I../STUBS -I/fs/home/jms875/install/include #/install is for NLopt
-MPI_PATH =      -L../STUBS -L/fs/home/jms875/install/lib #/install is for NLopt
+MPI_INC =       -I../STUBS -I/fs/europa/g_pc/NLopt/include #/install is for NLopt
+MPI_PATH =      -L../STUBS -L/fs/europa/g_pc/NLopt/lib #/install is for NLopt
 MPI_LIB =	-lmpi_stubs
 
 # FFT library
