@@ -14,7 +14,7 @@ This fix works for the December 7th, 2015 version of LAMMPs which can be downloa
 
 	- Add the SSH key to your GitHub account  
 
-		gedit ~/.ssh/id_rsa.pub
+		`gedit ~/.ssh/id_rsa.pub`
 	
 	In the top right corner of any GitHub page in your browser, click on your profile photo, the click 'Settings'
 	In the user settings sidebar, click 'SSH keys'
@@ -25,19 +25,21 @@ This fix works for the December 7th, 2015 version of LAMMPs which can be downloa
 
 	- Load your keys into your SSH agent  
 	
+		```
 		eval "$(ssh-agent -s)"
 		
 		ssh-add
+		```
 		
 	Enter passphrase
 	
 	- Test your SSH connection  
 
-		ssh -T git@github.com
+		`ssh -T git@github.com`
 		
 	You should see the message "Hi 'username'! You've successfully authenicated, but GitHub does not provide shell access."
 
-2.	Download the repository from github:
+2.	From the lammps source folder, download the repository from github:
 	
 		git init
 		
