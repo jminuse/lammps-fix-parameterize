@@ -44,6 +44,8 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 			continue
 		if len(result.atoms)==24:
 			continue
+		#if len(result.atoms)!=61:
+		#	continue
 		
 		#try to get forces
 		try:
