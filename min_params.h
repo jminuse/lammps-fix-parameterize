@@ -31,7 +31,7 @@ MinimizeStyle(params,MinParams)
 #include <vector>
 #include <string>
 
-#include <nlopt.h> //NLopt Non-Linear Optimization library. Compilation flags: gcc -I/fs/home/jms875/install/include -L/fs/home/jms875/install/lib -lnlopt -lm
+#include <nlopt.h> // NLopt Non-Linear Optimization library. Compilation flags: gcc -I/fs/europa/g_pc/NLopt/include -L/fs/europa/g_pc/NLopt/lib -lnlopt -lm
 
 namespace LAMMPS_NS {
 
