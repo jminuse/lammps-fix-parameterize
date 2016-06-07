@@ -12,7 +12,7 @@ This fix works for the December 7th, 2015 version of LAMMPs which can be downloa
 	At the prompt, type a secure passphrase
 	Retype your secure passphrase
 
-	- Add the SSH key to your GitHub account
+	- Add the SSH key to your GitHub account  
 
 		gedit ~/.ssh/id_rsa.pub
 	
@@ -23,7 +23,7 @@ This fix works for the December 7th, 2015 version of LAMMPs which can be downloa
 	Copy and Paste the contents from the 'id_rsa.pub' file into the "Key" field
 	Click 'Add SSH key'
 
-	- Load your keys into your SSH agent
+	- Load your keys into your SSH agent  
 	
 		eval "$(ssh-agent -s)"
 		
@@ -31,7 +31,7 @@ This fix works for the December 7th, 2015 version of LAMMPs which can be downloa
 		
 	Enter passphrase
 	
-	- Test your SSH connection
+	- Test your SSH connection  
 
 		ssh -T git@github.com
 		
