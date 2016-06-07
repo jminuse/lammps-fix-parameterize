@@ -1,4 +1,5 @@
 A LAMMPS fix for parameterizing Tersoff potentials. Optional Coulombic and Lennard-Jones contributions are available for the range outside the Tersoff cutoffs. 
+This fix works for the December 7th, 2015 version of LAMMPs which can be downloaded [here](http://lammps.sandia.gov/tars/lammps-7Dec15.tar.gz).  
 
 # Getting started
 	
