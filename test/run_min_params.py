@@ -57,7 +57,7 @@ for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
 			for a in result.atoms:
 				a.fx, a.fy, a.fz = 0.0, 0.0, 0.0
 		
-		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, check_charges=False)
+		with_bonds = utils.Molecule(outer+'orca/'+name+'/system.cml', extra_parameters=extra, test_charges=False)
 		
 		for a,b in zip(with_bonds.atoms, result.atoms):
 			a.fx, a.fy, a.fz = b.fx, b.fy, b.fz # copy forces
