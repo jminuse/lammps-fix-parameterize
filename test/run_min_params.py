@@ -24,7 +24,7 @@ system = utils.System(box_size=[1e3, 100.0, 100.0], name=run_name)
 
 systems_by_composition = {}
 
-for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']:
+for outer in ['/fs/home/jms875/build/lammps/lammps-7Dec15/src/test/']: #add your test file to run cml files with , ' '
 	directories = next(os.walk(outer+'orca'))[1]
 	for name in directories:
 		if not os.path.isfile(outer+'orca/'+name+'/system.cml'):

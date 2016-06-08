@@ -22,11 +22,11 @@ extra = {
 system = utils.System(box_size=[30, 30, 30], name=run_name)
 DMSO = utils.Molecule('molecules/dmso')
 acetone = utils.Molecule('molecules/acetone')
-PbCl2 = utils.Molecule('molecules/PbCl2', extra_parameters=extra, check_charges=False)
-MACl = utils.Molecule('molecules/MACl', extra_parameters=extra, check_charges=False)
+PbCl2 = utils.Molecule('molecules/PbCl2', extra_parameters=extra, test_charges=False)
+MACl = utils.Molecule('molecules/MACl', extra_parameters=extra, test_charges=False)
 
 if 0:
-	PbCl6_neg4 = utils.Molecule('molecules/PbCl6_4-', extra_parameters=extra, check_charges=False)
+	PbCl6_neg4 = utils.Molecule('molecules/PbCl6_4-', extra_parameters=extra, test_charges=False)
 	system.add(PbCl6_neg4)
 elif 0: #solvent+solute cluster
 	for xi in range(-1,1):
@@ -34,13 +34,13 @@ elif 0: #solvent+solute cluster
 			for zi in range(1):
 				system.add(PbCl2, xi*6, yi*6, zi*6)
 elif 0: #Pb2Cl
-	Pb2Cl_3 = utils.Molecule('molecules/Pb2Cl_3+', extra_parameters=extra, check_charges=False)
+	Pb2Cl_3 = utils.Molecule('molecules/Pb2Cl_3+', extra_parameters=extra, test_charges=False)
 	system.add(Pb2Cl_3)
 elif 0: #solvent+solute cluster
 	for xi in range(3):
 		for yi in range(3):
 			system.add(DMSO, (xi-0.5)*6, (yi-0.5)*6)
-	pb_ion = utils.Molecule('molecules/pb2+', extra_parameters=extra, check_charges=False)
+	pb_ion = utils.Molecule('molecules/pb2+', extra_parameters=extra, test_charges=False)
 	system.add(pb_ion, 0, 0, 5)
 	system.add(PbCl2, 10, 10, 10)
 elif 0: #MACl+PbCl2
@@ -49,7 +49,7 @@ elif 0: #MACl+PbCl2
 			system.add(MACl, (xi-0.5)*10, (yi-0.5)*10)
 	#system.add(PbCl2, 0, 0, 5)
 elif 1: #perovskite cubic structure
-	PbMACl3 = utils.Molecule('molecules/unit_cell', extra_parameters=extra, check_charges=False)
+	PbMACl3 = utils.Molecule('molecules/unit_cell', extra_parameters=extra, test_charges=False)
 	L = 6.0
 	N = 2
 	#system.xlo,system.xhi = -N*L*0.5, N*L*0.5
