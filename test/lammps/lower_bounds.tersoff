@@ -5,7 +5,7 @@
 # LJ-epsilon:    1.0      1.0      0
 # i, j, k,       m,        gamma,    lambda3,  c,        d,        costheta0,
 #                n,        beta,     lambda2,  B,        R,        D,        lambda1,  A
-Pb Pb Pb         3         1       0.0       100       0.1        -1
+Pb Pb Pb         3         1       0.0       100       0.1    .06279
                  1     1e-08       1.4         0       3.0       0.1       2.2         0
 Pb Pb Cl         1         0         0         0         0         0
                  0         0         0         0         0         0         0         0
