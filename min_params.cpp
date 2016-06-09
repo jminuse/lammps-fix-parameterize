@@ -280,7 +280,7 @@ double MinParams::calculate_error()
   
   force_error = sqrt(force_error/atom->natoms); //Normalize error
   energy_error = sqrt(energy_error/target_energies.size()); //Normalize error
-  return 0.0*force_error + energy_error;
+  return 0.0*force_error + energy_error;//right now this removes force error
 }
 
 /*
