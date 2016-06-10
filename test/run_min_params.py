@@ -98,9 +98,9 @@ for composition in systems_by_composition:
 		f.write(s.name+'\n')
 f.close()
 
-shutil.copy('input.tersoff', system.name+'_input.tersoff')
-shutil.copy('upper_bounds.tersoff', system.name+'_upper.tersoff')
-shutil.copy('lower_bounds.tersoff', system.name+'_lower.tersoff')
+shutil.copy('input_noH3.tersoff', system.name+'_input.tersoff') #changed these files to not include H3
+shutil.copy('upper_bounds_noH3.tersoff', system.name+'_upper.tersoff') #changed these files to not include H3
+shutil.copy('lower_bounds_noH3.tersoff', system.name+'_lower.tersoff') #changed these files to not include H3
 
 # write forces to a file
 f = open(system.name+'_forces.txt', 'w')
@@ -125,7 +125,7 @@ boundary f f f
 read_data	'''+system.name+'''.data
 ''').splitlines()
 
-tersoff_types = [t for t in system.atom_types if t.index in [Pb,Cl,HN]]
+tersoff_types = [t for t in system.atom_types if t.index in [Pb,Cl]]  #used to have a HN in this list
 
 for line in open(system.name+'_input.tersoff'):
 	if line.startswith('# Charges:'): charges = [float(x) for x in line.split()[2:]]
