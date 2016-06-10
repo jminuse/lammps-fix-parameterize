@@ -83,7 +83,7 @@ boundary p p p
 read_data	'''+system.name+'''.data
 ''').splitlines()
 
-tersoff_types = [t for t in system.atom_types if t.index in [Pb,Cl,HN]]
+tersoff_types = [t for t in system.atom_types if t.index in [Pb,Cl]] #removed HN for no H3 input types
 
 for line in open(system.name+'_input.tersoff'):
 	if line.startswith('# Charges:'): charges = [float(x) for x in line.split()[2:]]
