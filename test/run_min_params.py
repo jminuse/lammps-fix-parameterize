@@ -98,9 +98,9 @@ for composition in systems_by_composition:
 		f.write(s.name+'\n')
 f.close()
 
-shutil.copy('input_noH3.tersoff', system.name+'_input.tersoff') #changed these files to not include H3
-shutil.copy('upper_bounds_noH3.tersoff', system.name+'_upper.tersoff') #changed these files to not include H3
-shutil.copy('lower_bounds_noH3.tersoff', system.name+'_lower.tersoff') #changed these files to not include H3
+shutil.copy('input_%s.tersoff'% run_name, system.name+'_input.tersoff') #changed these files to allow for multiple runs at once
+shutil.copy('upper_%s.tersoff'% run_name, system.name+'_upper.tersoff') 
+shutil.copy('lower_%s.tersoff'% run_name, system.name+'_lower.tersoff') 
 
 # write forces to a file
 f = open(system.name+'_forces.txt', 'w')
